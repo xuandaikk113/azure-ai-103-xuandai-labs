@@ -1,6 +1,6 @@
 # XuanDai-Labs — Hands-on ôn thi Azure AI-103
 
-Bộ **54 lab Python độc lập** (9 nhóm chủ đề + nền tảng `00`) để học kiến thức thi
+Bộ **58 lab Python độc lập** (9 nhóm chủ đề + nền tảng `00`) để học kiến thức thi
 **AI-103 – Developing AI Apps and Agents on Azure** bằng cách viết code chạy được.
 Mỗi *alternative* (cách làm thay thế) nằm ở **một file riêng**. Python pin **3.12** (`.python-version`).
 
@@ -41,7 +41,7 @@ python _smoke_check.py                     # nghiệm thu: biên dịch mọi la
 | 09 | `09_observability_and_tracing` | Tracing (OpenTelemetry), monitoring & online evaluation |
 
 ## Lộ trình học gợi ý (learner path)
-0. **Hạ tầng Azure** → mở `00_azure_foundations/azure_foundations.html` (tài nguyên, RBAC, networking, CI/CD) + provisioning `00/01-02`.
+0. **Hạ tầng Azure** → mở `00_azure_foundations/azure_foundations.html` (tài nguyên, RBAC, networking, CI/CD) + provisioning `00/01` & RBAC bằng code `00/02-06` (scope, managed identity, custom role, audit).
 1. **Nền tảng Foundry** → `01` (auth keyless → deploy model → project → content safety).
 2. **Gọi GenAI** → `02` (chat completions → Responses API → streaming/JSON → multimodal → prompt engineering).
 3. **Agent cơ bản** → `03/01-03` (prompt agent → function tool → code interpreter/file search).

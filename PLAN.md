@@ -1,4 +1,4 @@
-# PLAN.md — Kế hoạch chi tiết từng file (54 lab)
+# PLAN.md — Kế hoạch chi tiết từng file (58 lab)
 
 > Dùng chung với `AGENTS.md`. Mỗi mục gồm: **Mục tiêu · SDK (+ tiền nhiệm) · ENV · Các bước · Thi nhớ**.
 >
@@ -35,6 +35,30 @@
 - **ENV:** `AZURE_SUBSCRIPTION_ID`, `AZURE_RESOURCE_GROUP`, `RBAC_PRINCIPAL_ID`, `RBAC_ROLE_NAME`.
 - **Các bước:** (1) tra `role_definition_id` theo tên role. (2) tạo `RoleAssignment` (principal + role + scope). (3) xác nhận.
 - **Thi nhớ:** RBAC = principal + role + scope (thừa kế xuống); least privilege. Web UI vs code xem `azure_foundations.html`.
+
+### `03_rbac_scopes_and_builtin_roles.py`
+
+- **Mục tiêu:** gán role ở các SCOPE khác nhau (subscription/rg/resource) + bảng built-in AI roles hay dùng.
+- **SDK:** `azure-mgmt-authorization`. **ENV:** thêm `RBAC_SCOPE_LEVEL`, `RBAC_TARGET_RESOURCE_ID`.
+- **Thi nhớ:** 4 cấp scope thừa kế xuống; chọn cấp thấp nhất đủ dùng. Built-in role: *Azure AI Developer*, *Cognitive Services OpenAI User*, *Search Index Data Reader/Contributor*, *Storage Blob Data …*.
+
+### `04_rbac_managed_identity_keyless.py`
+
+- **Mục tiêu:** gán role cho managed identity để app/agent gọi service keyless.
+- **SDK:** `azure-mgmt-authorization` (principal_type=`ServicePrincipal`). **ENV:** `MI_PRINCIPAL_ID`, `RBAC_ROLE_NAME`.
+- **Thi nhớ:** MI (system vs user-assigned) đều là ServicePrincipal; keyless chỉ chạy khi MI có role data-plane đúng, nếu không → 401/403.
+
+### `05_rbac_custom_role_definition.py`
+
+- **Mục tiêu:** tạo custom role (actions/dataActions) khi built-in không vừa, rồi (tuỳ chọn) gán.
+- **SDK:** `role_definitions.create_or_update` + `RoleDefinition`/`Permission`. **ENV:** (tuỳ chọn) `RBAC_PRINCIPAL_ID`.
+- **Thi nhớ:** `actions`=control plane, `dataActions`=data plane (keyless cần); `assignableScopes`; `roleType=CustomRole`.
+
+### `06_rbac_list_check_remove.py`
+
+- **Mục tiêu:** liệt kê/kiểm tra quyền của principal và xoá an toàn 1 assignment.
+- **SDK:** `role_assignments.list_for_scope` / `.delete`. **ENV:** (tuỳ chọn) `RBAC_PRINCIPAL_ID`, `RBAC_ASSIGNMENT_NAME_TO_DELETE`.
+- **Thi nhớ:** xoá assignment cần `name` (GUID); lọc `principalId eq '...'` để audit.
 
 ---
 
