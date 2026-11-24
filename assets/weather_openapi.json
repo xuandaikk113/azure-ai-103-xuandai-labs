@@ -1,0 +1,67 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "wttr.in Weather API",
+    "description": "API thời tiết công khai, không cần khoá (anonymous). Trả về JSON thời tiết theo tên địa điểm.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    { "url": "https://wttr.in" }
+  ],
+  "paths": {
+    "/{location}": {
+      "get": {
+        "operationId": "getWeatherByLocation",
+        "summary": "Lấy thời tiết hiện tại theo địa điểm",
+        "description": "Trả về thời tiết hiện tại cho một thành phố/địa điểm dưới dạng JSON.",
+        "parameters": [
+          {
+            "name": "location",
+            "in": "path",
+            "required": true,
+            "description": "Tên thành phố hoặc địa điểm, ví dụ: Hanoi, Tokyo.",
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "required": true,
+            "description": "Định dạng trả về; dùng 'j1' để nhận JSON đầy đủ.",
+            "schema": { "type": "string", "default": "j1", "enum": ["j1"] }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Thời tiết hiện tại ở dạng JSON.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "current_condition": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "temp_C": { "type": "string", "description": "Nhiệt độ hiện tại (°C)." },
+                          "humidity": { "type": "string", "description": "Độ ẩm (%)." },
+                          "weatherDesc": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": { "value": { "type": "string" } }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
