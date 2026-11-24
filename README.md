@@ -19,6 +19,7 @@ python _smoke_check.py                     # nghiệm thu: biên dịch mọi la
 - **`PLAN.md`** — kế hoạch chi tiết **từng file**: mục tiêu, SDK (+ tiền nhiệm), biến `.env`, các bước, điểm nhớ.
 - **`COVERAGE.md`** — bản đồ lab ↔ 5 nhóm kỹ năng thi (skills measured) + gap còn lại.
 - **`GLOSSARY.html`** — tra 123 thuật ngữ (có ô search live) · **`MINDMAP.html`** — sơ đồ quan hệ hệ sinh thái.
+- **`ENDPOINTS.md`** — bảng tra endpoint/URL/token-scope theo dịch vụ (portal, resource endpoint, scope keyless, SDK).
 - Mỗi lab Portal-relevant có **`<tên>.html`** cạnh file `.py` — hướng dẫn step-by-step trên Portal (modern Foundry UI).
 - **`_template.py`** — khung chuẩn để copy khi tạo lab mới (đã ép stdout UTF-8 cho Windows).
 - **`_smoke_check.py`** — kiểm tra nhanh toàn bộ lab.
