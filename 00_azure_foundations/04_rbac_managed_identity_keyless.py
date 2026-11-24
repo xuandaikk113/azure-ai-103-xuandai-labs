@@ -12,13 +12,23 @@ Web UI tương đương: Portal -> Resource -> Access control (IAM) -> Add role 
                     -> Assign access to: Managed identity -> chọn MI.
 ====================================================================
 
-GHI NHỚ — Managed Identity (MI) là gì & 2 loại:
+GHI NHỚ — Managed Identity (MI) là gì & 2 loại (System-assigned vs User-assigned):
     - MI là danh tính trong Entra ID do Azure quản lý (không có mật khẩu/secret để lộ).
-    - System-assigned : gắn CHẶT vào 1 resource (App Service, VM, Function...). Xoá resource -> mất MI.
-        * Lấy principalId: bật Identity trên resource -> resource.identity.principal_id
-    - User-assigned   : resource độc lập, GẮN được cho NHIỀU resource dùng chung.
-        * Lấy principalId: tạo identity (azure-mgmt-msi) -> identity.principal_id
-    - Cả hai đều xuất hiện trong RBAC với principal_type = 'ServicePrincipal'.
+    - Cả hai loại đều xuất hiện trong RBAC với principal_type = 'ServicePrincipal'. Khác nhau:
+        |               | System-assigned            | User-assigned                         |
+        | Bản chất      | sinh BÊN TRONG 1 resource  | là tài nguyên Azure ĐỘC LẬP           |
+        | Vòng đời      | xoá resource -> MẤT MI     | sống độc lập, resource xoá vẫn còn    |
+        | Quan hệ       | 1 : 1 (riêng mỗi resource) | N : M (1 MI gắn cho NHIỀU resource)   |
+        | Gán RBAC      | gán LẠI cho từng resource  | gán 1 LẦN, mọi resource gắn nó đều có |
+        | Lấy principalId | resource.identity.principal_id (sau khi bật Identity) | identity.principal_id của MI (azure-mgmt-msi) |
+    - Ví dụ: 3 Function App cùng đọc 1 Storage:
+        * system-assigned -> mỗi app 1 badge riêng -> gán role 3 LẦN.
+        * user-assigned   -> tạo 1 MI "id-ai103", gán role 1 LẦN, gắn cho cả 3 app.
+    - Chọn: 1 workload đứng riêng -> system-assigned (đơn giản);
+            nhiều resource dùng CHUNG quyền / cấp quyền TRƯỚC khi tạo compute (IaC) -> user-assigned.
+    - Trong code chọn MI nào khi xác thực:
+        * system-assigned -> ManagedIdentityCredential()               (resource chỉ có 1 MI)
+        * user-assigned   -> ManagedIdentityCredential(client_id="<client-id-cua-MI>")  (nói rõ dùng cái nào)
 
 GHI NHỚ — vì sao keyless cần RBAC:
     DefaultAzureCredential lấy token của MI, nhưng token chỉ gọi được service khi MI
