@@ -49,13 +49,20 @@ from azure.identity import DefaultAzureCredential, get_bearer_token_provider
 #   from azure.identity import AzureCliCredential
 #   cred = AzureCliCredential()           # DEV local: dùng luôn `az login`, không dò lòng vòng
 #
-#   from azure.identity import ManagedIdentityCredential
-#   cred = ManagedIdentityCredential()    # PROD: app chạy trên Azure có MI (xem lab 00/04)
-#   # user-assigned MI: ManagedIdentityCredential(client_id="<client-id-cua-MI>")
-#
+#   # ┌─ SERVICE PRINCIPAL (app registration) vs MANAGED IDENTITY ────────────────┐
+#   # │ Cả hai đều là 'ServicePrincipal' khi gán RBAC; khác ở AI GIỮ credential +  │
+#   # │ workload chạy ở đâu. Minh hoạ bằng code:                                   │
+#   #
 #   from azure.identity import ClientSecretCredential
-#   cred = ClientSecretCredential(tenant_id, client_id, client_secret)
-#   # Service Principal có secret: CI/CD, job ngoài Azure. Có secret -> kém MI, cân nhắc.
+#   cred = ClientSecretCredential(tenant_id, client_id, client_secret)  # (A) SP: BẠN giữ secret
+#   #   -> chạy MỌI NƠI (local / CI-CD / cloud khác); phải cất kỹ & xoay vòng secret, lộ = mất quyền.
+#
+#   from azure.identity import ManagedIdentityCredential
+#   cred = ManagedIdentityCredential()                                  # (B) MI system-assigned: KHÔNG secret
+#   cred = ManagedIdentityCredential(client_id="<client-id-cua-MI>")    #     MI user-assigned (chọn đúng MI)
+#   #   -> CHỈ chạy TRÊN Azure (VM/App Service/Function); Azure tự giữ & xoay vòng credential, không có gì để lộ.
+#   # Quy tắc: ở TRÊN Azure -> ưu tiên (B) MI; ở NGOÀI Azure -> (A) SP. Chi tiết 2 danh tính: GLOSSARY.html.
+#   # └───────────────────────────────────────────────────────────────────────────┘
 #
 #   from azure.identity import ClientCertificateCredential   # SP dùng cert thay secret (an toàn hơn secret)
 #   from azure.identity import InteractiveBrowserCredential  # mở browser cho user đăng nhập (app desktop)
