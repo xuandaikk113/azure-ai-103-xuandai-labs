@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mindmap · Hệ sinh thái AI-103</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<style>
+  :root{--bg:#0f1115;--card:#171a21;--fg:#e6e8eb;--muted:#9aa4b2;--accent:#4aa3ff;--line:#2a2f3a;--code:#0b0d11;}
+  @media (prefers-color-scheme:light){:root{--bg:#f6f7f9;--card:#fff;--fg:#1b1f27;--muted:#5a6472;--accent:#0a66c2;--line:#e2e6ec;--code:#f0f2f5;}}
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.6 -apple-system,Segoe UI,Roboto,sans-serif;}
+  .wrap{max-width:1000px;margin:0 auto;padding:28px 20px 80px;}
+  h1{font-size:1.7rem;margin:0 0 4px;}
+  .sub{color:var(--muted);margin:0 0 10px;}
+  h2{font-size:1.2rem;margin:34px 0 8px;color:var(--accent);border-top:1px solid var(--line);padding-top:14px;}
+  p.note{color:var(--muted);margin:0 0 8px;font-size:.92rem;}
+  .mermaid{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin:12px 0;overflow-x:auto;}
+  code{background:var(--code);padding:1px 5px;border-radius:4px;font-size:.88em;}
+  a{color:var(--accent);}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Mindmap · Hệ sinh thái AI-103</h1>
+  <p class="sub">Quan hệ giữa các thuật ngữ quan trọng trong Microsoft Foundry / Azure AI.
+  Giải thích từng thuật ngữ: xem <code>GLOSSARY.html</code>. Map vào kỹ năng thi: <code>COVERAGE.md</code>.</p>
+
+  <!-- 1. Tổng quan phân cấp -->
+  <h2>1 · Bản đồ tổng quan (mindmap)</h2>
+  <p class="note">Microsoft Foundry là trung tâm; các nhánh là nhóm năng lực chính của AI-103.</p>
+  <div class="mermaid">
+mindmap
+  root((Microsoft Foundry))
+    Platform
+      Project
+      Deployment
+      Playground
+      Connections
+      RBAC / Entra ID
+    Generative AI
+      LLM / SLM
+      Multimodal
+      Embedding
+      Prompt engineering
+      Responses API
+    Agents
+      Prompt agent
+      Tools
+      Conversation / Run
+      Agent Framework
+      Multi-agent
+    RAG
+      Azure AI Search
+      Hybrid / Semantic
+      Foundry IQ
+      Agentic retrieval
+    Vision
+      Image Analysis
+      Image generation
+      Video generation
+    Language and Speech
+      NER / PII / Sentiment
+      CLU
+      Translator
+      STT / TTS / SSML
+      Voice Live
+    Information Extraction
+      Document Intelligence
+      Content Understanding
+    Responsible AI
+      Content Safety
+      Guardrails
+      Evaluators
+    Observability
+      Tracing
+      Application Insights
+      Monitoring
+  </div>
+
+  <!-- 2. Tên/SDK cũ -> mới -->
+  <h2>2 · Đổi tên & hợp nhất (cũ → mới) — hay ra thi</h2>
+  <p class="note">Nhớ các chuyển đổi này để không dùng nhầm SDK/tên lỗi thời.</p>
+  <div class="mermaid">
+flowchart LR
+  FR["Form Recognizer"] --> DI["Document Intelligence"]
+  CS["Azure Cognitive Search"] --> AIS["Azure AI Search"]
+  CM["Content Moderator"] --> CSAFE["Content Safety"]
+  LUIS["LUIS"] --> CLU["CLU"]
+  INF["azure-ai-inference<br/>(retire 2026-08-26)"] --> V1["OpenAI SDK /v1"]
+  AOAI["AzureOpenAI(api_version)"] --> V1
+  AGT["azure-ai-agents"] --> PROJ["azure-ai-projects 2.x"]
+  SK["Semantic Kernel"] --> AF["Microsoft Agent Framework"]
+  AUTOGEN["AutoGen"] --> AF
+  AAIF["Azure AI Foundry"] --> MF["Microsoft Foundry"]
+  </div>
+
+  <!-- 3. Auth & deploy -->
+  <h2>3 · Xác thực & Deploy model</h2>
+  <div class="mermaid">
+flowchart LR
+  ENTRA["Entra ID"] --> DAC["DefaultAzureCredential<br/>(keyless)"]
+  DAC --> TOK["token scope<br/>ai.azure.com/.default"]
+  TOK --> V1["OpenAI /v1 client"]
+  KEY["API key"] -. cách cũ .-> V1
+  V1 --> DEP["Deployment<br/>(Standard/Global/PTU)"]
+  DEP --> MODEL["Model (gpt-4o...)"]
+  RBAC["RBAC role"] -. cấp quyền .-> DAC
+  </div>
+
+  <!-- 4. Agent + tools + orchestration -->
+  <h2>4 · Agent · Tools · Multi-agent</h2>
+  <div class="mermaid">
+flowchart TD
+  AGENT["Prompt agent<br/>model + instructions"] --> TOOLS["Tools"]
+  TOOLS --> FUNC["Function"]
+  TOOLS --> CI["Code Interpreter"]
+  TOOLS --> FS["File Search → Vector store"]
+  TOOLS --> MCP["MCP"]
+  TOOLS --> OAPI["OpenAPI"]
+  TOOLS --> AZF["Azure Functions"]
+  TOOLS --> BING["Bing grounding"]
+  TOOLS --> SEARCH["Azure AI Search / Foundry IQ"]
+  AGENT --> CONV["Conversation / Run"]
+  AGENT --> ORCH["Multi-agent"]
+  ORCH --> SEQ["Sequential"]
+  ORCH --> CONC["Concurrent"]
+  ORCH --> HAND["Handoff"]
+  ORCH --> SUP["Supervisor (as_tool)"]
+  ORCH --> REF["Reflection"]
+  </div>
+
+  <!-- 5. RAG & grounding -->
+  <h2>5 · RAG & Grounding</h2>
+  <div class="mermaid">
+flowchart LR
+  DOC["Tài liệu / Blob"] --> IDXR["Indexer + Skillset<br/>(OCR, chunk, embed)"]
+  IDXR --> INDEX["Index (vector)"]
+  INDEX --> HYB["Hybrid + Semantic ranker"]
+  INDEX --> KB["Foundry IQ<br/>Knowledge base"]
+  KB --> AR["Agentic retrieval"]
+  HYB --> AGENT["Agent / App"]
+  AR --> AGENT
+  AGENT --> ANS["Trả lời + citation"]
+  </div>
+
+  <!-- 6. Information extraction -->
+  <h2>6 · Trích xuất thông tin</h2>
+  <div class="mermaid">
+flowchart LR
+  FILE["File (PDF/ảnh/audio/video)"] --> DI["Document Intelligence<br/>(layout/invoice/ID)"]
+  FILE --> CU["Content Understanding<br/>(đa phương thức)"]
+  DI --> FIELDS["Fields + confidence"]
+  CU --> MD["Markdown / schema"]
+  MD --> RAG["Dùng cho RAG / agent"]
+  FIELDS --> APP["Ứng dụng"]
+  </div>
+
+  <p class="sub" style="margin-top:34px">Tài liệu học — không phải nguồn chính thức. Đối chiếu Microsoft Learn khi cần.</p>
+</div>
+
+<script>
+  const dark=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches;
+  mermaid.initialize({startOnLoad:true, theme:dark?'dark':'default'});
+</script>
+</body>
+</html>
