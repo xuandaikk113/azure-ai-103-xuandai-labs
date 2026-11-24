@@ -1,6 +1,6 @@
 # XuanDai-Labs — Hands-on ôn thi Azure AI-103
 
-Bộ **58 lab Python độc lập** (9 nhóm chủ đề + nền tảng `00`) để học kiến thức thi
+Bộ **59 lab Python độc lập** (9 nhóm chủ đề + nền tảng `00`) để học kiến thức thi
 **AI-103 – Developing AI Apps and Agents on Azure** bằng cách viết code chạy được.
 Mỗi *alternative* (cách làm thay thế) nằm ở **một file riêng**. Python pin **3.12** (`.python-version`).
 

@@ -1,4 +1,4 @@
-# PLAN.md — Kế hoạch chi tiết từng file (58 lab)
+# PLAN.md — Kế hoạch chi tiết từng file (59 lab)
 
 > Dùng chung với `AGENTS.md`. Mỗi mục gồm: **Mục tiêu · SDK (+ tiền nhiệm) · ENV · Các bước · Thi nhớ**.
 >
@@ -111,6 +111,12 @@
 - **ENV:** `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_VERSION`, `AZURE_SUBSCRIPTION_ID`, `AZURE_RESOURCE_GROUP`, `AOAI_ACCOUNT_NAME`.
 - **Các bước:** (1) upload file train/validation (JSONL). (2) tạo fine-tuning job → poll. (3) deploy model fine-tuned. (4) gọi thử.
 - **Thi nhớ:** fine-tune ≠ RAG ≠ prompt; cần JSONL; model customization có chi phí hosting riêng.
+
+### `07_auth_service_principal_client_secret.py`
+
+- **Mục tiêu:** app NGOÀI Azure (on-prem/CI-CD) xác thực bằng **service principal** (app registration + client secret) rồi đọc Blob.
+- **SDK:** `azure-identity` (`ClientSecretCredential`) + `azure-storage-blob` (`BlobServiceClient`). **ENV:** `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`, `STORAGE_ACCOUNT_NAME`.
+- **Thi nhớ:** "App" = Application object (toàn cầu) + service principal (cục bộ, cái được gán quyền). Đối xứng 00/04 (MI): SP giữ secret & chạy mọi nơi; MI không secret & chỉ trên Azure; cả hai là `principal_type='ServicePrincipal'`.
 
 ---
 
