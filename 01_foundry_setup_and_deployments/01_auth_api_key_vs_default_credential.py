@@ -27,6 +27,56 @@ from dotenv import load_dotenv
 # api_key của OpenAI client để TỰ ĐỘNG lấy & làm mới token (không cần secret tĩnh).
 from azure.identity import DefaultAzureCredential, get_bearer_token_provider
 
+# ════════════════════════════════════════════════════════════════
+# THAM CHIẾU — các loại credential trong azure-identity & KHI NÀO DÙNG
+# ----------------------------------------------------------------
+# DefaultAzureCredential KHÔNG phải 1 cách xác thực riêng — nó là 1 CHUỖI thử
+# lần lượt nhiều credential, dùng cái đầu tiên có sẵn. Thứ tự (rút gọn):
+#   1. EnvironmentCredential      -> đọc biến môi trường (AZURE_CLIENT_ID/TENANT_ID/CLIENT_SECRET...)
+#   2. WorkloadIdentityCredential -> pod trên AKS (federated token, không secret)
+#   3. ManagedIdentityCredential  -> MI của App Service/VM/Function/Container (PRODUCTION)
+#   4. SharedTokenCacheCredential -> cache đăng nhập dùng chung (Windows)
+#   5. VisualStudioCodeCredential -> danh tính đăng nhập trong VS Code
+#   6. AzureCliCredential         -> danh tính bạn đã `az login` (DEV trên máy local)
+#   7. AzurePowerShellCredential  -> `Connect-AzAccount` (PowerShell)
+#   8. AzureDeveloperCliCredential-> danh tính `azd auth login`
+#   (sau đó: InteractiveBrowser/Broker — mặc định TẮT; bật bằng tham số nếu cần)
+#   => Nhờ vậy CÙNG 1 code chạy được cả local (CLI) lẫn production (Managed Identity)
+#      mà không đổi dòng nào. Đây là lý do nên mặc định dùng DefaultAzureCredential.
+#
+# Khi cần CHỈ ĐỊNH RÕ 1 cách (nhanh hơn, khỏi dò cả chuỗi), import trực tiếp:
+#
+#   from azure.identity import AzureCliCredential
+#   cred = AzureCliCredential()           # DEV local: dùng luôn `az login`, không dò lòng vòng
+#
+#   from azure.identity import ManagedIdentityCredential
+#   cred = ManagedIdentityCredential()    # PROD: app chạy trên Azure có MI (xem lab 00/04)
+#   # user-assigned MI: ManagedIdentityCredential(client_id="<client-id-cua-MI>")
+#
+#   from azure.identity import ClientSecretCredential
+#   cred = ClientSecretCredential(tenant_id, client_id, client_secret)
+#   # Service Principal có secret: CI/CD, job ngoài Azure. Có secret -> kém MI, cân nhắc.
+#
+#   from azure.identity import ClientCertificateCredential   # SP dùng cert thay secret (an toàn hơn secret)
+#   from azure.identity import InteractiveBrowserCredential  # mở browser cho user đăng nhập (app desktop)
+#   from azure.identity import DeviceCodeCredential          # nhập code trên thiết bị khác (máy không có browser)
+#
+# Tự dựng chuỗi ưu tiên riêng (vd chỉ CLI rồi MI) bằng ChainedTokenCredential:
+#   from azure.identity import ChainedTokenCredential, AzureCliCredential, ManagedIdentityCredential
+#   cred = ChainedTokenCredential(AzureCliCredential(), ManagedIdentityCredential())
+#
+# BẢNG CHỌN NHANH:
+#   | Tình huống                          | Nên dùng                                  |
+#   |-------------------------------------|-------------------------------------------|
+#   | Dev trên máy local                  | DefaultAzureCredential (qua AzureCli)     |
+#   | App chạy trên Azure (App Svc/VM/AKS)| ManagedIdentityCredential / DefaultAzure… |
+#   | CI/CD pipeline                      | OIDC/WorkloadIdentity, hoặc ClientSecret  |
+#   | App desktop có user tương tác       | InteractiveBrowserCredential              |
+#   | Máy/thiết bị không có trình duyệt   | DeviceCodeCredential                      |
+#   | Nhiều môi trường, 1 codebase        | DefaultAzureCredential (mặc định)         |
+# async: dùng bản trong `azure.identity.aio` (cùng tên class) cho code bất đồng bộ.
+# ════════════════════════════════════════════════════════════════
+
 # ── SDK Azure OpenAI ────────────────────────────────────────────
 # openai (lớp OpenAI thuần) + base_url /openai/v1/ là cách KHUYẾN NGHỊ (không cần api_version).
 # (Tiền nhiệm: AzureOpenAI(azure_endpoint=..., api_version=...) — vẫn chạy nhưng không còn ưu tiên.)
