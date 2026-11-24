@@ -1,0 +1,7 @@
+# Giữ nguyên byte cho file nhị phân (tránh CRLF làm hỏng PDF/ảnh/audio).
+*.pdf  binary
+*.jpg  binary
+*.jpeg binary
+*.png  binary
+*.wav  binary
+*.mp4  binary
