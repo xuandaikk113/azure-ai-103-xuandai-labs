@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lab 08/01 · Document Intelligence Studio · Layout + Tables</title>
+<style>
+  :root { --bg:#0f1115; --card:#171a21; --fg:#e6e8eb; --muted:#9aa4b2;
+          --accent:#4aa3ff; --line:#2a2f3a; --code:#0b0d11; --warn:#ffcc66; --ok:#5bd98a; }
+  @media (prefers-color-scheme: light) {
+    :root { --bg:#f6f7f9; --card:#fff; --fg:#1b1f27; --muted:#5a6472;
+            --accent:#0a66c2; --line:#e2e6ec; --code:#f0f2f5; --warn:#8a6d00; --ok:#1a7f4b; }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.65 -apple-system,Segoe UI,Roboto,sans-serif; }
+  .wrap { max-width:900px; margin:0 auto; padding:32px 20px 80px; }
+  h1 { font-size:1.6rem; margin:0 0 4px; }
+  h2 { font-size:1.2rem; margin:32px 0 10px; padding-top:12px; border-top:1px solid var(--line); }
+  .sub { color:var(--muted); margin:0 0 10px; }
+  .pill { display:inline-block; background:var(--code); border:1px solid var(--line);
+          border-radius:20px; padding:2px 10px; font-size:.8rem; color:var(--muted); margin:2px 4px 2px 0; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px 18px; margin:14px 0; }
+  code { background:var(--code); padding:2px 6px; border-radius:5px; font-size:.9em; }
+  pre { background:var(--code); border:1px solid var(--line); border-radius:10px; padding:14px; overflow-x:auto; font-size:.85rem; }
+  .mermaid { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; margin:14px 0; }
+  .warn { border-left:3px solid var(--warn); padding-left:12px; }
+  .ok { border-left:3px solid var(--ok); padding-left:12px; }
+  .toggle { border-left:3px solid var(--accent); padding-left:12px; }
+  a { color:var(--accent); }
+  ol.steps { list-style:none; counter-reset:step; padding:0; margin:0; }
+  ol.steps > li { counter-increment:step; position:relative; padding:12px 0 12px 52px; border-bottom:1px solid var(--line); }
+  ol.steps > li::before { content:counter(step); position:absolute; left:0; top:12px; width:34px; height:34px;
+     border-radius:50%; background:var(--accent); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700; }
+  .path { font-size:.85rem; color:var(--muted); }
+  .path b { color:var(--accent); }
+  kbd { background:var(--code); border:1px solid var(--line); border-bottom-width:2px; border-radius:5px; padding:1px 6px; font-size:.85em; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:.92rem; }
+  th,td { text-align:left; padding:7px 9px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { color:var(--muted); }
+  ul.refs { padding-left:18px; } ul.refs li { margin:5px 0; }
+</style></head><body><div class="wrap">
+<h1>Lab 08/01 · Document Intelligence Studio · Layout + Tables</h1>
+<p class="sub">Trích layout/bảng trên <strong>Document Intelligence Studio</strong>, song song <code>01_doc_intelligence_layout_and_tables.py</code>.</p>
+<p><span class="pill">Document Intelligence Studio</span><span class="pill">prebuilt-layout</span><span class="pill">Tables</span></p>
+<div class="card toggle"><strong>🧰 Document Intelligence Studio</strong> tại <code>documentintelligence.ai.azure.com</code> (không phải Foundry portal) — cần chọn resource (endpoint + key). Đổi tên từ Form Recognizer Studio.</div>
+<div class="card"><strong>Mục tiêu:</strong> Dùng model <b>Layout</b> để trích text, đoạn, <b>bảng</b>, selection marks, toạ độ.</div>
+<h2>Chuẩn bị</h2><ul><li>1 Document Intelligence (hoặc Foundry) resource — Studio cần endpoint + key.</li><li>File mẫu PDF/ảnh.</li></ul>
+<h2>Các bước trên Portal</h2><ol class="steps">
+<li><strong>Mở Studio</strong><div class="path">Vào <b>documentintelligence.ai.azure.com</b> → đăng nhập → chọn resource (endpoint + key).</div></li>
+<li><strong>Chọn Layout</strong><div class="path">Trang chủ → mục <b>Layout</b>.</div></li>
+<li><strong>Upload + phân tích</strong><div class="path">Dùng file mẫu hoặc <b>Upload</b> → <b>Run analysis</b> (chỉnh Analyze options nếu cần).</div></li>
+<li><strong>Xem kết quả</strong><div class="path">Xem text/bảng/selection marks được highlight + JSON output ở panel bên.</div></li>
+</ol>
+<div class="card ok"><strong>Nghiệm thu:</strong> Kết quả hiển thị bảng + cấu trúc; copy được JSON.</div>
+<div class="card warn"><strong>Lưu ý thi:</strong> Layout cho cấu trúc + bảng. Đổi tên từ Form Recognizer. Hỗ trợ PDF/ảnh/Office.</div>
+<h2>Tham khảo (trang có ảnh minh hoạ)</h2><ul class="refs">
+<li><a href="https://learn.microsoft.com/en-us/training/modules/extract-data-with-document-intelligence/3-use-document-intelligence-studio" target="_blank">Dùng Document Intelligence Studio — có ảnh</a></li>
+</ul>
+<h2>Đối chiếu với code</h2><p>Cùng việc này bằng code ở <code>01_doc_intelligence_layout_and_tables.py</code>. Portal = làm tay / trực quan; code = tự động hoá, CI-CD.</p>
+<p class="sub" style="margin-top:34px">Tài liệu học — không phải nguồn chính thức. Giao diện Portal đổi thường xuyên; luôn đối chiếu link Microsoft Learn ở trên.</p>
+</div>
+</body></html>

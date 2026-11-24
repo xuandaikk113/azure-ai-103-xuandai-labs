@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lab 06/04 · Foundry IQ · Agentic Retrieval (knowledge base)</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<style>
+  :root { --bg:#0f1115; --card:#171a21; --fg:#e6e8eb; --muted:#9aa4b2;
+          --accent:#4aa3ff; --line:#2a2f3a; --code:#0b0d11; --warn:#ffcc66; --ok:#5bd98a; }
+  @media (prefers-color-scheme: light) {
+    :root { --bg:#f6f7f9; --card:#fff; --fg:#1b1f27; --muted:#5a6472;
+            --accent:#0a66c2; --line:#e2e6ec; --code:#f0f2f5; --warn:#8a6d00; --ok:#1a7f4b; }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.65 -apple-system,Segoe UI,Roboto,sans-serif; }
+  .wrap { max-width:900px; margin:0 auto; padding:32px 20px 80px; }
+  h1 { font-size:1.6rem; margin:0 0 4px; }
+  h2 { font-size:1.2rem; margin:32px 0 10px; padding-top:12px; border-top:1px solid var(--line); }
+  .sub { color:var(--muted); margin:0 0 10px; }
+  .pill { display:inline-block; background:var(--code); border:1px solid var(--line);
+          border-radius:20px; padding:2px 10px; font-size:.8rem; color:var(--muted); margin:2px 4px 2px 0; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px 18px; margin:14px 0; }
+  code { background:var(--code); padding:2px 6px; border-radius:5px; font-size:.9em; }
+  pre { background:var(--code); border:1px solid var(--line); border-radius:10px; padding:14px; overflow-x:auto; font-size:.85rem; }
+  .mermaid { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; margin:14px 0; }
+  .warn { border-left:3px solid var(--warn); padding-left:12px; }
+  .ok { border-left:3px solid var(--ok); padding-left:12px; }
+  .toggle { border-left:3px solid var(--accent); padding-left:12px; }
+  a { color:var(--accent); }
+  ol.steps { list-style:none; counter-reset:step; padding:0; margin:0; }
+  ol.steps > li { counter-increment:step; position:relative; padding:12px 0 12px 52px; border-bottom:1px solid var(--line); }
+  ol.steps > li::before { content:counter(step); position:absolute; left:0; top:12px; width:34px; height:34px;
+     border-radius:50%; background:var(--accent); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700; }
+  .path { font-size:.85rem; color:var(--muted); }
+  .path b { color:var(--accent); }
+  kbd { background:var(--code); border:1px solid var(--line); border-bottom-width:2px; border-radius:5px; padding:1px 6px; font-size:.85em; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:.92rem; }
+  th,td { text-align:left; padding:7px 9px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { color:var(--muted); }
+  ul.refs { padding-left:18px; } ul.refs li { margin:5px 0; }
+</style></head><body><div class="wrap">
+<h1>Lab 06/04 · Foundry IQ · Agentic Retrieval (knowledge base)</h1>
+<p class="sub">Tạo knowledge base + agentic retrieval (Foundry IQ) trên Azure AI Search / New Foundry, song song <code>04_rag_foundry_iq_agentic_retrieval.py</code>.</p>
+<p><span class="pill">Foundry IQ</span><span class="pill">Knowledge base</span><span class="pill">Agentic retrieval</span><span class="pill">preview</span></p>
+<div class="card toggle"><strong>2 cách tạo:</strong> (A) <b>New Foundry</b> → Build → Knowledge, hoặc (B) <b>Azure Portal</b> → search service → Agentic retrieval. Tính năng agentic retrieval ở portal hiện còn <b>preview</b>.</div>
+<div class="card"><strong>Mục tiêu:</strong> Tạo 1 <b>knowledge base</b> (Foundry IQ) và chạy agentic retrieval — tự lập kế hoạch truy vấn, trả lời có citation.</div>
+<h2>Chuẩn bị</h2><ul><li>Search service: bật RBAC + system-assigned managed identity; gán cho user: Search Service Contributor + Index Data Contributor/Reader.</li><li>Foundry resource: gán <b>Cognitive Services User</b> cho managed identity của search service.</li></ul>
+<h2>Luồng tổng quan</h2><div class="mermaid">
+flowchart LR
+  KS[Knowledge source] --> KB[Knowledge base]
+  KB --> AR[Agentic retrieval]
+  AR --> ANS[Trả lời + citation]
+</div>
+<h2>Các bước trên Portal</h2><ol class="steps">
+<li><strong>(Cách A · Foundry) Knowledge</strong><div class="path">New Foundry → <b>Build</b> (top menu) → tab <b>Knowledge</b> → tạo knowledge base, thêm từng <b>knowledge source</b>, cấu hình retrieval behavior.</div></li>
+<li><strong>(Cách B · Azure) Knowledge source</strong><div class="path">search service → <b>Agentic retrieval → Knowledge sources</b> → vd Azure blob (Indexed), kind = <b>Microsoft Foundry</b> → chọn subscription/project/embedding.</div></li>
+<li><strong>(Cách B) Knowledge base</strong><div class="path"><b>Agentic retrieval → Knowledge bases</b> → kind Microsoft Foundry → chọn <b>LLM deployment</b> → attach knowledge source → Create.</div></li>
+<li><strong>Thử</strong><div class="path">Dùng <b>Search Explorer</b> / API retrieve để test; xem index sinh ra + activity log.</div></li>
+</ol>
+<div class="card ok"><strong>Nghiệm thu:</strong> Knowledge base trả câu trả lời có trích dẫn; activity log cho thấy các bước truy vấn.</div>
+<div class="card warn"><strong>Lưu ý thi:</strong> Foundry IQ chạy trên Azure AI Search; agentic retrieval tự lập kế hoạch đa nguồn. Reasoning effort đổi cost/latency; minimal = chỉ semantic (không LLM). Preview: tối đa 10 knowledge source/KB.</div>
+<h2>Tham khảo (trang có ảnh minh hoạ)</h2><ul class="refs">
+<li><a href="https://learn.microsoft.com/en-us/azure/search/get-started-portal-agentic-retrieval" target="_blank">Agentic retrieval trong Azure Portal — có ảnh</a></li>
+<li><a href="https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/what-is-foundry-iq" target="_blank">What is Foundry IQ?</a></li>
+<li><a href="https://learn.microsoft.com/en-us/azure/search/agentic-retrieval-overview" target="_blank">Agentic retrieval overview (Foundry IQ)</a></li>
+</ul>
+<h2>Đối chiếu với code</h2><p>Cùng việc này bằng code ở <code>04_rag_foundry_iq_agentic_retrieval.py</code>. Portal = làm tay / trực quan; code = tự động hoá, CI-CD.</p>
+<p class="sub" style="margin-top:34px">Tài liệu học — không phải nguồn chính thức. Giao diện Portal đổi thường xuyên; luôn đối chiếu link Microsoft Learn ở trên.</p>
+</div>
+<script>const dark=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches;mermaid.initialize({startOnLoad:true,theme:dark?'dark':'default'});</script>
+</body></html>

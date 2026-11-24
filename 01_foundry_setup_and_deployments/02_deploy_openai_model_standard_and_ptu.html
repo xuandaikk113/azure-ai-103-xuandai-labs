@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lab 01/02 · Deploy model trên Microsoft Foundry Portal (modern)</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<style>
+  :root { --bg:#0f1115; --card:#171a21; --fg:#e6e8eb; --muted:#9aa4b2;
+          --accent:#4aa3ff; --line:#2a2f3a; --code:#0b0d11; --warn:#ffcc66; --ok:#5bd98a; }
+  @media (prefers-color-scheme: light) {
+    :root { --bg:#f6f7f9; --card:#fff; --fg:#1b1f27; --muted:#5a6472;
+            --accent:#0a66c2; --line:#e2e6ec; --code:#f0f2f5; --warn:#8a6d00; --ok:#1a7f4b; }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.65 -apple-system,Segoe UI,Roboto,sans-serif; }
+  .wrap { max-width:900px; margin:0 auto; padding:32px 20px 80px; }
+  h1 { font-size:1.65rem; margin:0 0 4px; }
+  h2 { font-size:1.22rem; margin:34px 0 10px; padding-top:12px; border-top:1px solid var(--line); }
+  .sub { color:var(--muted); margin:0 0 10px; }
+  .pill { display:inline-block; background:var(--code); border:1px solid var(--line);
+          border-radius:20px; padding:2px 10px; font-size:.8rem; color:var(--muted); margin:2px 4px 2px 0; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px 18px; margin:14px 0; }
+  code { background:var(--code); padding:2px 6px; border-radius:5px; font-size:.9em; }
+  pre { background:var(--code); border:1px solid var(--line); border-radius:10px; padding:14px; overflow-x:auto; font-size:.85rem; }
+  .mermaid { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; margin:14px 0; }
+  .warn { border-left:3px solid var(--warn); padding-left:12px; }
+  .ok { border-left:3px solid var(--ok); padding-left:12px; }
+  .toggle { border-left:3px solid var(--accent); padding-left:12px; }
+  a { color:var(--accent); }
+  ol.steps { list-style:none; counter-reset:step; padding:0; margin:0; }
+  ol.steps > li { counter-increment:step; position:relative; padding:12px 0 12px 52px; border-bottom:1px solid var(--line); }
+  ol.steps > li::before { content:counter(step); position:absolute; left:0; top:12px; width:34px; height:34px;
+     border-radius:50%; background:var(--accent); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700; }
+  .path { font-size:.85rem; color:var(--muted); }
+  .path b { color:var(--accent); }
+  kbd { background:var(--code); border:1px solid var(--line); border-bottom-width:2px; border-radius:5px; padding:1px 6px; font-size:.85em; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:.92rem; }
+  th,td { text-align:left; padding:7px 9px; border-bottom:1px solid var(--line); }
+  th { color:var(--muted); }
+  ul.refs { padding-left:18px; } ul.refs li { margin:5px 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Lab 01/02 · Deploy model (Standard / Global / PTU)</h1>
+  <p class="sub">Hướng dẫn trực quan trên <strong>Microsoft Foundry Portal — giao diện MỚI (New Foundry)</strong>,
+  song song với file code <code>02_deploy_openai_model_standard_and_ptu.py</code>.</p>
+  <p>
+    <span class="pill">Foundry Portal (new)</span><span class="pill">Deploy model</span>
+    <span class="pill">Standard · Global · PTU</span><span class="pill">~5 phút</span>
+  </p>
+
+  <div class="card toggle">
+    <strong>⚙️ Nút toggle "New Foundry":</strong> ở <em>thanh banner trên cùng</em> của portal có công tắc chuyển
+    giữa <strong>New Foundry</strong> và <strong>Foundry (classic)</strong> — nó giữ nguyên project bạn đang mở.
+    Hướng dẫn này theo <strong>New Foundry</strong>, nên hãy bật toggle đó <strong>ON</strong> trước khi làm.
+    (Vài tính năng cũ như network isolation đầy đủ, Prompt Flow còn nằm ở classic.)
+  </div>
+
+  <div class="card">
+    <strong>Mục tiêu:</strong> tạo 1 <em>deployment</em> cho model (vd <code>gpt-4o</code> / <code>gpt-5.1-mini</code>),
+    rồi lấy endpoint + tên deployment để code gọi được.
+  </div>
+
+  <h2>Chuẩn bị</h2>
+  <ul>
+    <li>Có 1 <strong>Foundry project</strong> (chưa có: <span class="path">ai.azure.com → <b>Create project</b></span>).</li>
+    <li>Quyền <strong>Azure AI Developer</strong> (hoặc Owner/Contributor) trên resource.</li>
+    <li>Còn <strong>quota</strong> cho model ở region muốn deploy.</li>
+  </ul>
+
+  <h2>Luồng tổng quan (modern)</h2>
+  <div class="mermaid">
+flowchart LR
+  T["Bật toggle<br/>New Foundry"] --> DISC["Discover<br/>(góc trên phải)"]
+  DISC --> MOD["Models (pane trái)"]
+  MOD --> CARD["Chọn model → model card"]
+  CARD --> DEP["Deploy<br/>(portal tự chọn type)"]
+  DEP --> READY["Deployment Succeeded<br/>+ endpoint + tên"]
+  READY --> CODE["Code gọi qua tên deployment"]
+  </div>
+
+  <h2>Các bước trên Portal (New Foundry)</h2>
+  <ol class="steps">
+    <li>
+      <strong>Đăng nhập &amp; bật New Foundry</strong>
+      <div class="path">Vào <b>ai.azure.com</b> → đảm bảo công tắc <b>New Foundry</b> ở banner trên cùng đang <b>ON</b> → chọn project.</div>
+    </li>
+    <li>
+      <strong>Mở danh mục model</strong>
+      <div class="path">Góc trên phải chọn <b>Discover</b> → pane trái chọn <b>Models</b>.</div>
+    </li>
+    <li>
+      <strong>Chọn model</strong>
+      <div class="path">Tìm <kbd>gpt-4o</kbd> → mở <b>model card</b> xem chi tiết → bấm <b>Deploy</b> (hoặc <b>Use this model</b>).</div>
+    </li>
+    <li>
+      <strong>Xác nhận deployment type</strong> — portal <em>tự chọn</em> type theo model + môi trường. Có thể đổi:
+      <table>
+        <tr><th>Deployment type</th><th>Khi nào dùng</th></tr>
+        <tr><td><b>Standard</b> (khuyến nghị trong Foundry resource)</td><td>token-based, theo region</td></tr>
+        <tr><td><b>Global Standard</b></td><td>token-based, dung lượng toàn cầu</td></tr>
+        <tr><td><b>Provisioned (PTU)</b></td><td>throughput cố định, trả theo giờ — tải lớn/ổn định</td></tr>
+      </table>
+    </li>
+    <li>
+      <strong>Đặt tên + capacity → Deploy</strong>
+      <div class="path">Deployment name: <kbd>gpt-4o</kbd> · Capacity: vd <kbd>10</kbd> → <b>Deploy</b>.</div>
+    </li>
+    <li>
+      <strong>Lấy thông tin cho code</strong>
+      <div class="path">Mở deployment → copy <b>Target URI / endpoint</b> và <b>Deployment name</b> vào <code>.env</code>.</div>
+    </li>
+  </ol>
+
+  <div class="card ok">
+    <strong>Nghiệm thu:</strong> deployment trạng thái <em>Succeeded</em>, và chat thử được ở
+    <span class="path"><b>Playground</b> → chọn deployment → gõ câu hỏi</span>.
+  </div>
+
+  <h2>Ví dụ <code>.env</code> sau khi deploy</h2>
+  <pre><code>AZURE_OPENAI_ENDPOINT=https://my-foundry.openai.azure.com/
+AZURE_OPENAI_CHAT_DEPLOYMENT=gpt-4o        # = Deployment name (KHÔNG phải tên model gốc)</code></pre>
+
+  <div class="card warn">
+    <strong>Lưu ý thi:</strong> <code>model=</code> trong code là <strong>tên deployment</strong>.
+    PTU tính tiền theo giờ kể cả khi không gọi — xoá deployment test để tránh phí.
+  </div>
+
+  <h2>Tham khảo (trang có ảnh minh hoạ)</h2>
+  <ul class="refs">
+    <li><a href="https://learn.microsoft.com/en-us/azure/foundry/foundry-models/how-to/deploy-foundry-models" target="_blank">Deploy Foundry Models (new portal)</a> — có ảnh từng bước.</li>
+    <li><a href="https://learn.microsoft.com/en-us/azure/foundry/how-to/navigate-from-classic" target="_blank">Migrate from Foundry (classic) — vị trí nút toggle</a>.</li>
+    <li><a href="https://learn.microsoft.com/en-us/azure/foundry/tutorials/quickstart-create-foundry-resources" target="_blank">Quickstart: tạo project + deploy model</a>.</li>
+  </ul>
+
+  <h2>Đối chiếu với code</h2>
+  <p>Cùng việc này bằng code ở <code>02_deploy_openai_model_standard_and_ptu.py</code>
+  (<code>azure-mgmt-cognitiveservices</code> → <code>deployments.begin_create_or_update</code>). Portal = làm tay 1 lần; code = tự động hoá / CI-CD.</p>
+
+  <p class="sub" style="margin-top:34px">Tài liệu học — không phải nguồn chính thức. Giao diện Portal đổi thường xuyên;
+  luôn đối chiếu link Microsoft Learn ở trên.</p>
+</div>
+
+<script>
+  const dark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  mermaid.initialize({ startOnLoad:true, theme: dark ? 'dark' : 'default' });
+</script>
+</body>
+</html>

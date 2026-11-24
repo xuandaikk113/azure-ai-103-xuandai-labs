@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lab 07/05 · Translator (resource + document translation)</title>
+<style>
+  :root { --bg:#0f1115; --card:#171a21; --fg:#e6e8eb; --muted:#9aa4b2;
+          --accent:#4aa3ff; --line:#2a2f3a; --code:#0b0d11; --warn:#ffcc66; --ok:#5bd98a; }
+  @media (prefers-color-scheme: light) {
+    :root { --bg:#f6f7f9; --card:#fff; --fg:#1b1f27; --muted:#5a6472;
+            --accent:#0a66c2; --line:#e2e6ec; --code:#f0f2f5; --warn:#8a6d00; --ok:#1a7f4b; }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.65 -apple-system,Segoe UI,Roboto,sans-serif; }
+  .wrap { max-width:900px; margin:0 auto; padding:32px 20px 80px; }
+  h1 { font-size:1.6rem; margin:0 0 4px; }
+  h2 { font-size:1.2rem; margin:32px 0 10px; padding-top:12px; border-top:1px solid var(--line); }
+  .sub { color:var(--muted); margin:0 0 10px; }
+  .pill { display:inline-block; background:var(--code); border:1px solid var(--line);
+          border-radius:20px; padding:2px 10px; font-size:.8rem; color:var(--muted); margin:2px 4px 2px 0; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px 18px; margin:14px 0; }
+  code { background:var(--code); padding:2px 6px; border-radius:5px; font-size:.9em; }
+  pre { background:var(--code); border:1px solid var(--line); border-radius:10px; padding:14px; overflow-x:auto; font-size:.85rem; }
+  .mermaid { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; margin:14px 0; }
+  .warn { border-left:3px solid var(--warn); padding-left:12px; }
+  .ok { border-left:3px solid var(--ok); padding-left:12px; }
+  .toggle { border-left:3px solid var(--accent); padding-left:12px; }
+  a { color:var(--accent); }
+  ol.steps { list-style:none; counter-reset:step; padding:0; margin:0; }
+  ol.steps > li { counter-increment:step; position:relative; padding:12px 0 12px 52px; border-bottom:1px solid var(--line); }
+  ol.steps > li::before { content:counter(step); position:absolute; left:0; top:12px; width:34px; height:34px;
+     border-radius:50%; background:var(--accent); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700; }
+  .path { font-size:.85rem; color:var(--muted); }
+  .path b { color:var(--accent); }
+  kbd { background:var(--code); border:1px solid var(--line); border-bottom-width:2px; border-radius:5px; padding:1px 6px; font-size:.85em; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:.92rem; }
+  th,td { text-align:left; padding:7px 9px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { color:var(--muted); }
+  ul.refs { padding-left:18px; } ul.refs li { margin:5px 0; }
+</style></head><body><div class="wrap">
+<h1>Lab 07/05 · Translator (resource + document translation)</h1>
+<p class="sub">Tạo Translator resource; dịch text và dịch document qua blob, song song <code>05_translator_text_and_document_translation.py</code>.</p>
+<p><span class="pill">Azure Portal</span><span class="pill">Translator</span><span class="pill">Document translation</span></p>
+<div class="card toggle"><strong>ℹ️ Translator</strong> chủ yếu dùng qua API/SDK. Phần Portal: tạo <b>Translator</b> resource (portal.azure.com) để lấy key + region; Document Translation chạy qua blob.</div>
+<div class="card"><strong>Mục tiêu:</strong> Tạo Translator resource (key + region); dịch text và document (async qua blob).</div>
+<h2>Chuẩn bị</h2><ul><li>Subscription.</li><li>(Document) 2 blob container nguồn/đích + SAS.</li></ul>
+<h2>Các bước trên Portal</h2><ol class="steps">
+<li><strong>Tạo Translator resource</strong><div class="path">portal.azure.com → Create a resource → <b>Translator</b> → lấy <b>key + region</b>.</div></li>
+<li><strong>Dịch text</strong><div class="path">Dùng SDK/REST với key + region (text translation).</div></li>
+<li><strong>Document translation</strong><div class="path">Blob nguồn (có file) + blob đích (rỗng) + SAS → chạy batch translation (async).</div></li>
+</ol>
+<div class="card ok"><strong>Nghiệm thu:</strong> Dịch được text; job document translation chạy xong, blob đích có file dịch.</div>
+<div class="card warn"><strong>Lưu ý thi:</strong> Translator cần region với key đa vùng. Document translation là async (long-running) qua blob + SAS.</div>
+<h2>Tham khảo (trang có ảnh minh hoạ)</h2><ul class="refs">
+<li><a href="https://learn.microsoft.com/azure/ai-services/translator/translator-overview" target="_blank">Azure AI Translator overview</a></li>
+</ul>
+<h2>Đối chiếu với code</h2><p>Cùng việc này bằng code ở <code>05_translator_text_and_document_translation.py</code>. Portal = làm tay / trực quan; code = tự động hoá, CI-CD.</p>
+<p class="sub" style="margin-top:34px">Tài liệu học — không phải nguồn chính thức. Giao diện Portal đổi thường xuyên; luôn đối chiếu link Microsoft Learn ở trên.</p>
+</div>
+</body></html>
