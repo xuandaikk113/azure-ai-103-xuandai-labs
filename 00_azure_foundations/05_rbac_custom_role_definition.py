@@ -101,7 +101,7 @@ def main() -> None:
             RoleAssignmentCreateParameters(
                 role_definition_id=created.id,
                 principal_id=principal_id,
-                principal_type="User",
+                principal_type="User",   # tùy chọn nhưng nên đặt để tránh 'PrincipalNotFound' (xem 00/02)
             ),
         )
         print(f"Đã gán custom role cho principal. Assignment id: {assignment.id}")

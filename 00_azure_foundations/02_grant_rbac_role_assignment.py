@@ -77,9 +77,14 @@ def main() -> None:
         scope,
         str(uuid.uuid4()),               # name: GUID bất kỳ, duy nhất
         RoleAssignmentCreateParameters(
+            # --- 2 field BẮT BUỘC ---
             role_definition_id=role_def_id,
-            principal_id=cfg["RBAC_PRINCIPAL_ID"],   # objectId của user/MI/SP
-            principal_type="User",       # đổi 'ServicePrincipal' nếu gán cho app/MI
+            principal_id=cfg["RBAC_PRINCIPAL_ID"],   # objectId của user / group / SP / managed identity
+            # --- field TÙY CHỌN (nhưng NÊN đặt) ---
+            principal_type="User",       # 'User' | 'Group' | 'ServicePrincipal' (app & MI đều là ServicePrincipal).
+            # Bỏ qua -> Azure TỰ SUY từ principal_id. Nhưng với principal VỪA tạo (Entra chưa replicate xong),
+            # bước suy luận dễ fail -> lỗi 'PrincipalNotFound'. Đặt rõ principal_type để BỎ QUA tra cứu đó -> chắc ăn hơn.
+            # (Field optional khác của RoleAssignmentCreateParameters: description; condition + condition_version cho ABAC.)
         ),
     )
     print(f"Đã gán quyền. Assignment id: {assignment.id}")

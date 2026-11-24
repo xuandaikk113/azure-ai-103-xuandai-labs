@@ -84,7 +84,9 @@ def main() -> None:
         RoleAssignmentCreateParameters(
             role_definition_id=role_def_id,
             principal_id=cfg["MI_PRINCIPAL_ID"],
-            principal_type="ServicePrincipal",   # MI (system/user-assigned) đều là ServicePrincipal
+            principal_type="ServicePrincipal",   # MI (system/user-assigned) đều là ServicePrincipal.
+            # QUAN TRỌNG ở đây: MI vừa tạo thường CHƯA replicate -> nếu bỏ principal_type dễ 'PrincipalNotFound'.
+            # Đặt rõ 'ServicePrincipal' để bỏ qua bước Azure tự suy từ principal_id (xem chi tiết 00/02).
         ),
     )
     print(f"Đã gán '{role_name}' cho managed identity. Assignment id: {assignment.id}")
