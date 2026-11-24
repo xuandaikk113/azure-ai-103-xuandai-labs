@@ -49,7 +49,7 @@ def main() -> None:
         api_key=cfg["FOUNDRY_MODELS_API_KEY"],
     )
 
-    # Gọi chat completion với model non-OpenAI (vd Mistral-large-2411)
+    # Gọi chat completion với model non-OpenAI (vd mistral-large-4-latest; tên catalog đổi theo thời gian)
     print(f"Hỏi model: {cfg['FOUNDRY_NON_OPENAI_MODEL']}")
     resp = client.chat.completions.create(
         model=cfg["FOUNDRY_NON_OPENAI_MODEL"],
