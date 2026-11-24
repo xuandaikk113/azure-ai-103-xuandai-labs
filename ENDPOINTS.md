@@ -18,17 +18,17 @@ Hai portal dùng chung **Entra ID**. Foundry resource tạo ở `ai.azure.com` v
 > Chỗ "thử trực tiếp trên web" nên ưu tiên dùng **Playgrounds trong Foundry** (Build → Playgrounds).
 > Các URL Studio cũ phần lớn **vẫn mở được nhưng redirect / sắp retire** — nhớ cho đỡ lạc, đừng phụ thuộc lâu dài.
 
-| Studio | URL (cũ/đứng riêng) | Trạng thái 2026 | Thử gì |
-|--------|---------------------|-----------------|--------|
+| Studio | URL | Trạng thái 2026 (đã xác minh Microsoft Learn, 24/11/2026) | Thử gì |
+|--------|-----|----------------------------------------------------------|--------|
 | **Foundry Playgrounds** | `ai.azure.com` → Build → Playgrounds | ✅ **Nhà mới** của hầu hết playground | Chat, agent, model, image, speech, vision… |
-| Vision Studio | `portal.vision.cognitive.azure.com` | 🔁 Redirect vào Foundry / đang retire *(nguồn phụ)* | Image Analysis, OCR/Read, objects |
+| Speech Studio | `aka.ms/speechstudio/` | ✅ **Còn chạy**, Foundry chỉ là lựa chọn thêm (chưa có ngày retire) | STT, TTS, SSML, custom/voice gallery, pronunciation |
+| Document Intelligence Studio | `documentintelligence.ai.azure.com/studio` | ⏳ **Còn chạy**, đang migrate 1 phần vào Foundry; feature ≤11/2024 + **custom classification vẫn chỉ ở Studio** | Layout, prebuilt (invoice/ID), custom model |
 | Language Studio | `language.azure.com` | ⏳ Còn chạy, **migrate vào Foundry 20/03/2027** | NER, PII, sentiment, CLU, summarization |
-| Speech Studio | `speech.microsoft.com` | ⚠️ *Chưa xác minh lại 2026* — đang chuyển vào Foundry | STT, TTS, SSML, custom voice |
-| Content Safety Studio | `contentsafety.cognitive.azure.com` | ⚠️ *Chưa xác minh lại 2026* — Content Safety là Foundry Tool | Thử lọc text/image có hại, severity |
-| Document Intelligence Studio | `documentintelligence.ai.azure.com` | ⚠️ *Chưa xác minh lại 2026* — đang migrate vào Foundry | Layout, prebuilt (invoice/ID), custom model |
-| Custom Vision | `customvision.ai` | ⚠️ *Chưa xác minh lại 2026* | Train classifier/object detection custom |
+| Content Safety Studio | *(không còn URL riêng)* → `ai.azure.com` | 🔁 Docs chuyển sang **"Foundry (classic)"**; thử tại Foundry portal | Lọc text/image có hại, severity |
+| Vision Studio | `portal.vision.cognitive.azure.com` | 🔁 Redirect vào Foundry / đang retire *(nguồn Q&A)* | Image Analysis, OCR/Read, objects |
+| Custom Vision | `customvision.ai` | ⚠️ **ĐANG RETIRE — hỗ trợ đến 25/09/2028**; thay bằng AML AutoML / Foundry Models / Content Understanding | Train classifier/object detection custom |
 
-> ⚠️ = URL theo trí nhớ, **chưa kiểm chứng lại ở thời điểm 2026** (các Studio này không có trang Learn xác nhận URL khi tra). Nếu bị redirect, tìm playground tương ứng trong Foundry Portal. ✅/🔁/⏳ = đã xác nhận qua Microsoft Learn / Q&A (11/2026).
+> ✅ còn chạy ổn · ⏳ còn chạy nhưng đã có lộ trình migrate (có/không ngày) · 🔁 không còn studio riêng, dùng trong Foundry · ⚠️ sắp khai tử (có ngày cụ thể). Tất cả xác minh qua trang Learn của từng dịch vụ (ms.date 2026). Lưu ý: Document Intelligence Studio **có đuôi `/studio`**; sovereign cloud dùng domain `formrecognizer.appliedai.azure.us|cn/studio`.
 
 ## 2. Endpoint dịch vụ (dùng trong code) — theo đuôi domain
 
