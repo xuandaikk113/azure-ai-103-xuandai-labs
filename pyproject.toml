@@ -1,0 +1,56 @@
+[project]
+# Dự án thực hành ôn thi Azure AI-103. Quản lý thư viện bằng uv (không dùng pip/requirements.txt).
+# Cài tất cả: `uv sync`   |   Thêm gói mới: `uv add <pkg>`   |   Chạy 1 lab: `uv run 02_genai_chat_alternatives/01_chat_azure_openai_sdk_completions.py`
+name = "xuandai-ai-103-labs"
+version = "0.1.0"
+description = "Hands-on labs ôn thi Azure AI-103 (Developing AI Apps and Agents on Azure)"
+requires-python = ">=3.11"   # agent-framework yêu cầu Python >= 3.11
+
+dependencies = [
+    # --- Nền tảng chung ---
+    "python-dotenv",            # load biến môi trường từ .env
+    "azure-identity",           # DefaultAzureCredential / keyless auth (Entra ID)
+
+    # --- Chat / Generative AI ---
+    # openai SDK là cách GA để gọi CẢ Azure OpenAI LẪN Foundry Models (non-OpenAI) qua endpoint OpenAI /v1.
+    # (Thay cho azure-ai-inference / ChatCompletionsClient đã deprecated, retire 2026-08-26.)
+    "openai",                   # AzureOpenAI + Responses API + OpenAI /v1 cho Foundry Models
+
+    # --- Agents & Foundry project ---
+    "azure-ai-projects",        # AIProjectClient + Foundry Agent Service (đã gộp azure-ai-agents cũ)
+    "agent-framework-core",     # Microsoft Agent Framework - lõi (kế thừa Semantic Kernel + AutoGen)
+    "agent-framework-foundry",  # tích hợp Agent Framework với Microsoft Foundry
+
+    # --- Hạ tầng / provisioning (folder 00) ---
+    "azure-mgmt-storage",            # tạo storage account + blob container qua ARM
+    "azure-mgmt-authorization",      # gán RBAC role assignment bằng code
+
+    # --- Deploy model & Responsible AI ---
+    "azure-mgmt-cognitiveservices",  # tạo/quản lý deployment model qua ARM (Standard/PTU...)
+    "azure-ai-contentsafety",        # Content Safety (tiền nhiệm: Content Moderator đã retire)
+    "azure-ai-evaluation",           # đánh giá chất lượng/an toàn (groundedness, relevance, safety)
+
+    # --- RAG / Search ---
+    "azure-search-documents",   # Azure AI Search (tên cũ: Azure Cognitive Search) + Foundry IQ
+
+    # --- Vision / Language / Speech / Translator ---
+    "azure-ai-vision-imageanalysis",   # Image Analysis 4.0
+    "azure-ai-textanalytics",          # Language: NER/PII/sentiment/summarization
+    "azure-ai-language-conversations",  # CLU (intent/entity)
+    "azure-ai-translation-text",       # Translator - text
+    "azure-ai-translation-document",   # Translator - document
+    "azure-cognitiveservices-speech",  # Speech SDK STT/TTS/SSML - v1.51 (2026) vẫn hiện hành
+    "azure-ai-voicelive[aiohttp]",     # Voice Live realtime (speech-to-speech) - SDK GA 1.0, async-only
+
+    # --- Information extraction ---
+    "azure-ai-documentintelligence",   # Document Intelligence (tên cũ: Form Recognizer, đang phase-out)
+    "azure-ai-contentunderstanding",   # Content Understanding - SDK GA 1.1.0 (API 2025-11-01).
+                                        # Cần agentic/analyze_inline → `uv add --prerelease=allow azure-ai-contentunderstanding` (1.2.0b3)
+
+    # --- Observability / tracing (lab 09) ---
+    "azure-monitor-opentelemetry",   # xuất trace/metric/log của agent lên Application Insights
+]
+
+[tool.uv]
+# uv tự tạo môi trường ảo .venv và khoá phiên bản trong uv.lock
+package = false

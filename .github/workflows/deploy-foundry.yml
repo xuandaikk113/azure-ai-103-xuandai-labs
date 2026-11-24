@@ -1,0 +1,63 @@
+# ====================================================================
+# CI/CD mẫu cho AI-103: build/kiểm thử + deploy model trên Microsoft Foundry.
+# Xác thực KEYLESS bằng OIDC (federated credential) - KHÔNG lưu secret/password.
+# Phủ skill "Integrate Foundry projects with CI/CD pipelines" (nhóm Plan & manage).
+# Cần cấu hình trước (GitHub repo settings):
+#   - Variables: AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID,
+#                AZURE_RESOURCE_GROUP, AOAI_ACCOUNT_NAME
+#   - Service principal có federated credential trỏ về repo này (OIDC).
+# ====================================================================
+name: deploy-foundry
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:        # cho phép chạy tay từ tab Actions
+
+permissions:
+  id-token: write           # BẮT BUỘC để lấy OIDC token (keyless login)
+  contents: read
+
+jobs:
+  # 1) Kiểm thử: không gọi Azure, chỉ biên dịch lab + self-test
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cài uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Smoke-check (biên dịch mọi lab)
+        run: |
+          python _smoke_check.py --self-test
+          python _smoke_check.py
+
+  # 2) Deploy: đăng nhập keyless rồi tạo/cập nhật deployment model
+  deploy:
+    needs: test                       # chỉ deploy khi test xanh
+    runs-on: ubuntu-latest
+    environment: production           # có thể bật "required reviewers" để duyệt trước khi deploy
+    steps:
+      - uses: actions/checkout@v4
+
+      # Đăng nhập Azure bằng OIDC (không dùng client secret)
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      # Tạo/cập nhật deployment model (ví dụ gpt-4o, SKU GlobalStandard)
+      - name: Tạo model deployment
+        run: |
+          az cognitiveservices account deployment create \
+            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+            --name "${{ vars.AOAI_ACCOUNT_NAME }}" \
+            --deployment-name "gpt-4o" \
+            --model-name "gpt-4o" \
+            --model-version "2024-11-20" \
+            --model-format OpenAI \
+            --sku-capacity 10 \
+            --sku-name "GlobalStandard"

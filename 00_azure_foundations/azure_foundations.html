@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Azure Foundations cho AI-103</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1115; --card: #171a21; --fg: #e6e8eb; --muted: #9aa4b2;
+    --accent: #4aa3ff; --line: #2a2f3a; --code: #0b0d11; --warn: #ffcc66;
+  }
+  @media (prefers-color-scheme: light) {
+    :root { --bg:#f6f7f9; --card:#fff; --fg:#1b1f27; --muted:#5a6472;
+            --accent:#0a66c2; --line:#e2e6ec; --code:#f0f2f5; --warn:#8a6d00; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg);
+    font:16px/1.65 -apple-system,Segoe UI,Roboto,sans-serif; }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 32px 20px 80px; }
+  h1 { font-size: 1.9rem; margin: 0 0 4px; }
+  h2 { font-size: 1.3rem; margin: 40px 0 12px; padding-top: 12px; border-top:1px solid var(--line); }
+  h3 { font-size: 1.05rem; margin: 22px 0 8px; color: var(--accent); }
+  .sub { color: var(--muted); margin: 0 0 8px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px;
+    padding:16px 18px; margin:14px 0; }
+  code { background:var(--code); padding:2px 6px; border-radius:5px; font-size:.9em; }
+  pre { background:var(--code); border:1px solid var(--line); border-radius:10px;
+    padding:14px; overflow-x:auto; font-size:.86rem; }
+  pre code { background:none; padding:0; }
+  table { width:100%; border-collapse:collapse; margin:12px 0; font-size:.92rem; }
+  th,td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { color:var(--muted); font-weight:600; }
+  .warn { border-left:3px solid var(--warn); padding-left:12px; color:var(--fg); }
+  .pill { display:inline-block; background:var(--code); border:1px solid var(--line);
+    border-radius:20px; padding:2px 10px; font-size:.8rem; color:var(--muted); margin:2px 4px 2px 0; }
+  .mermaid { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; margin:14px 0; }
+  a { color:var(--accent); }
+  ol li, ul li { margin:4px 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Azure Foundations cho AI-103</h1>
+  <p class="sub">Kiến thức hạ tầng nền tảng để làm được các lab: cấu trúc tài nguyên, RBAC &amp; định danh,
+  networking/security, storage, CI/CD. Học phần này <strong>trước</strong> khi vào lab code.</p>
+  <p>
+    <span class="pill">Phủ: Plan &amp; manage (25–30%)</span>
+    <span class="pill">keyless auth</span>
+    <span class="pill">RBAC</span>
+    <span class="pill">private networking</span>
+    <span class="pill">CI/CD</span>
+  </p>
+
+  <!-- ============================================================ -->
+  <h2>1 · Cấu trúc tài nguyên Azure</h2>
+  <p>Mọi thứ nằm trong một cây phân cấp. Nhớ thứ tự này để hiểu <em>scope</em> của RBAC và cách tổ chức dự án.</p>
+  <div class="mermaid">
+flowchart TD
+  T["Microsoft Entra ID<br/>(tenant / danh tính)"] --> S["Subscription<br/>(đơn vị tính tiền)"]
+  S --> RG["Resource Group<br/>(nhóm tài nguyên theo vòng đời)"]
+  RG --> F["Foundry resource + project"]
+  RG --> AOAI["Azure OpenAI"]
+  RG --> SEARCH["Azure AI Search"]
+  RG --> ST["Storage account (blob)"]
+  RG --> KV["Key Vault"]
+  F -. connection .-> SEARCH
+  F -. connection .-> ST
+  F -. connection .-> KV
+  </div>
+  <ul>
+    <li><strong>Tenant (Entra ID):</strong> nơi quản lý danh tính (user, group, app/service principal, managed identity).</li>
+    <li><strong>Subscription:</strong> ranh giới tính tiền &amp; quota.</li>
+    <li><strong>Resource Group:</strong> gom tài nguyên cùng vòng đời (xoá RG = xoá hết bên trong).</li>
+    <li><strong>Foundry project:</strong> trung tâm của app/agent; kết nối (connection) tới Search/Storage/Key Vault.</li>
+  </ul>
+
+  <!-- ============================================================ -->
+  <h2>2 · Định danh &amp; xác thực (keyless)</h2>
+  <p>AI-103 ưu tiên <strong>keyless</strong> (Entra ID) thay cho API key. Trong code dùng
+  <code>DefaultAzureCredential</code> — nó tự thử lần lượt nhiều nguồn credential.</p>
+  <div class="mermaid">
+flowchart LR
+  APP["Ứng dụng / lab .py"] --> DAC["DefaultAzureCredential"]
+  DAC -->|"1. biến môi trường"| ENV["EnvironmentCredential"]
+  DAC -->|"2. identity gắn VM/App"| MI["ManagedIdentityCredential"]
+  DAC -->|"3. đã az login"| CLI["AzureCliCredential"]
+  DAC --> TOK["Lấy access token (Entra ID)"]
+  TOK --> SVC["Dịch vụ Azure<br/>kiểm tra RBAC rồi cho phép"]
+  </div>
+  <div class="card">
+    <h3>3 loại định danh hay gặp</h3>
+    <table>
+      <tr><th>Loại</th><th>Dùng khi</th></tr>
+      <tr><td><strong>User</strong></td><td>dev local (<code>az login</code>)</td></tr>
+      <tr><td><strong>Managed Identity</strong></td><td>app chạy trên Azure (VM, App Service, Container) — không cần quản lý secret</td></tr>
+      <tr><td><strong>Service Principal</strong> (app registration)</td><td>CI/CD, hệ thống ngoài Azure; với OIDC thì không cần client secret</td></tr>
+    </table>
+    <p class="sub">→ Xem lab <code>01_foundry_setup_and_deployments/01_auth_api_key_vs_default_credential.py</code>.</p>
+  </div>
+
+  <!-- ============================================================ -->
+  <h2>3 · RBAC — cấp quyền (Web UI &amp; bằng code)</h2>
+  <p>RBAC = <em>ai</em> (principal) được làm <em>gì</em> (role) ở <em>phạm vi nào</em> (scope). Quyền
+  <strong>thừa kế xuống dưới</strong>: gán ở RG thì áp cho mọi resource trong RG.</p>
+  <div class="mermaid">
+flowchart TD
+  MG["Management Group"] --> SUB["Subscription"]
+  SUB --> RG["Resource Group"]
+  RG --> RES["Resource đơn lẻ"]
+  note["Gán role ở cấp nào thì thừa kế xuống mọi cấp dưới"]:::n
+  MG -.-> note
+  classDef n fill:#2a2f3a,stroke:#4aa3ff,color:#e6e8eb;
+  </div>
+
+  <h3>Cách gán qua Web UI (Azure Portal)</h3>
+  <ol>
+    <li>Mở resource (hoặc RG) → menu trái <strong>Access control (IAM)</strong>.</li>
+    <li><strong>+ Add → Add role assignment</strong>.</li>
+    <li>Tab <strong>Role</strong>: chọn vai trò (vd <em>Cognitive Services User</em>).</li>
+    <li>Tab <strong>Members</strong>: chọn <em>User, group, or service principal</em> (hoặc <em>Managed identity</em>) → chọn đối tượng.</li>
+    <li><strong>Review + assign</strong>. Đợi vài phút để quyền có hiệu lực.</li>
+  </ol>
+
+  <h3>Cách gán bằng Azure CLI</h3>
+  <pre><code>az role assignment create \
+  --assignee "&lt;objectId của user/MI/SP&gt;" \
+  --role "Cognitive Services User" \
+  --scope "/subscriptions/&lt;sub&gt;/resourceGroups/&lt;rg&gt;/providers/Microsoft.CognitiveServices/accounts/&lt;account&gt;"</code></pre>
+
+  <h3>Cách gán bằng code (Python)</h3>
+  <p>→ Lab <code>00_azure_foundations/02_grant_rbac_role_assignment.py</code> dùng
+  <code>azure-mgmt-authorization</code> (tạo <code>RoleAssignment</code> với <code>role_definition_id</code> + <code>principal_id</code> + <code>scope</code>).</p>
+
+  <div class="card">
+    <h3>Các role hay dùng cho AI-103</h3>
+    <table>
+      <tr><th>Role</th><th>Dùng để</th></tr>
+      <tr><td>Azure AI Developer</td><td>làm việc trong Foundry project (tạo agent, deployment)</td></tr>
+      <tr><td>Cognitive Services User</td><td>gọi endpoint AI services (keyless)</td></tr>
+      <tr><td>Cognitive Services OpenAI User</td><td>gọi Azure OpenAI (inference)</td></tr>
+      <tr><td>Search Index Data Reader / Contributor</td><td>query / ghi dữ liệu index (RAG)</td></tr>
+      <tr><td>Storage Blob Data Contributor</td><td>đọc/ghi blob (ingest dữ liệu, output)</td></tr>
+    </table>
+    <p class="warn">Nguyên tắc <strong>least privilege</strong>: cấp role hẹp nhất đủ dùng, scope nhỏ nhất đủ dùng.</p>
+  </div>
+
+  <!-- ============================================================ -->
+  <h2>4 · Networking &amp; Security</h2>
+  <p>Mặc định endpoint AI services là <strong>public</strong>. Môi trường production thường khoá public và
+  chỉ cho truy cập qua <strong>Private Endpoint</strong> trong VNet.</p>
+  <div class="mermaid">
+flowchart LR
+  subgraph VNet["VNet (mạng riêng)"]
+    C["App / agent"] --> PE["Private Endpoint<br/>(IP riêng)"]
+  end
+  PE ==> SVC["Azure OpenAI / Search / Storage<br/>(public access = Disabled)"]
+  NET["Internet"] -. bị chặn .-x SVC
+  </div>
+  <table>
+    <tr><th>Khái niệm</th><th>Ý nghĩa</th></tr>
+    <tr><td>VNet / Subnet</td><td>mạng riêng ảo; tài nguyên nói chuyện nội bộ không qua internet</td></tr>
+    <tr><td>Private Endpoint</td><td>gán IP riêng trong VNet cho dịch vụ PaaS; tắt truy cập public</td></tr>
+    <tr><td>NSG (Network Security Group)</td><td>luật firewall theo IP/port cho subnet/NIC</td></tr>
+    <tr><td>Key Vault</td><td>lưu secret/key/cert tập trung; app lấy qua managed identity (không hard-code)</td></tr>
+    <tr><td>Managed identity</td><td>xác thực không secret cho tài nguyên chạy trên Azure</td></tr>
+  </table>
+
+  <!-- ============================================================ -->
+  <h2>5 · Storage cho AI</h2>
+  <p>Nhiều lab cần blob: ingest tài liệu (RAG), input/output dịch document, dữ liệu train fine-tune.</p>
+  <pre><code># Tạo nhanh bằng Azure CLI
+az storage account create -n &lt;name&gt; -g &lt;rg&gt; -l southeastasia --sku Standard_LRS
+az storage container create --account-name &lt;name&gt; -n documents --auth-mode login</code></pre>
+  <p class="sub">→ Lab <code>00_azure_foundations/01_provision_storage_blob.py</code> làm điều này bằng
+  <code>azure-mgmt-storage</code> (tạo account + container). Dùng chung với RAG (<code>06/03</code>) và dịch document (<code>07/05</code>).</p>
+
+  <!-- ============================================================ -->
+  <h2>6 · CI/CD cho Foundry</h2>
+  <p>Tự động hoá build → test → deploy. File mẫu: <code>.github/workflows/deploy-foundry.yml</code>
+  (đăng nhập <strong>OIDC keyless</strong>, chạy <code>_smoke_check.py</code>, rồi tạo model deployment).</p>
+  <div class="mermaid">
+flowchart LR
+  PUSH["git push main"] --> GHA["GitHub Actions"]
+  GHA --> TEST["job test<br/>_smoke_check.py"]
+  TEST -->|xanh| LOGIN["Azure login (OIDC,<br/>không secret)"]
+  LOGIN --> DEPLOY["az ... deployment create"]
+  DEPLOY --> FOUNDRY["Microsoft Foundry"]
+  </div>
+  <p class="warn">Dùng <strong>OIDC federated credential</strong> thay client secret → không có password nằm trong repo.
+  Bật <em>environment required reviewers</em> để cần duyệt trước khi deploy production (approval workflow).</p>
+
+  <p class="sub" style="margin-top:40px">Tài liệu học — không phải nguồn chính thức. Luôn đối chiếu Microsoft Learn khi API/portal đổi.</p>
+</div>
+
+<script>
+  // mermaid tự đổi theme sáng/tối theo hệ điều hành
+  const dark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  mermaid.initialize({ startOnLoad: true, theme: dark ? 'dark' : 'default' });
+</script>
+</body>
+</html>
