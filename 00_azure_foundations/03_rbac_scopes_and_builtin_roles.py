@@ -17,17 +17,27 @@ GHI NHỚ — 4 cấp SCOPE (quyền THỪA KẾ xuống dưới, không kế l�
     Management group  >  Subscription  >  Resource group  >  Resource
     Gán càng cao càng rộng. Nguyên tắc least privilege: gán ở cấp THẤP NHẤT đủ dùng.
 
-GHI NHỚ — built-in role AI hay dùng (đủ cho AI-103, không cần custom role):
-    | Role                              | Cho ai / làm gì                                   |
-    |-----------------------------------|---------------------------------------------------|
-    | Azure AI Developer                | Dev: tạo/chạy project, agent, deployment (Foundry)|
-    | Cognitive Services User           | Gọi AI service bằng KEY (đọc key)                 |
-    | Cognitive Services OpenAI User    | Gọi Azure OpenAI inference (chat/embedding) keyless|
-    | Cognitive Services OpenAI Contributor | Tạo/sửa deployment, fine-tune                 |
-    | Search Index Data Reader          | Query dữ liệu trong index (RAG read)              |
-    | Search Index Data Contributor     | Ghi/ingest tài liệu vào index                     |
-    | Storage Blob Data Reader/Contributor | Đọc/ghi blob (ingest RAG, output)              |
-    -> keyless (DefaultAzureCredential) chỉ chạy được khi principal có role data-plane đúng ở trên.
+GHI NHỚ — built-in role (đủ cho AI-103, không cần custom role).
+  (A) Foundry (MỚI, 2026 — Microsoft đã ĐỔI TÊN; tên cũ còn hiện trong giai đoạn rollout):
+    | Role mới                 | Tên cũ                   | Cho ai / làm gì                          |
+    |--------------------------|--------------------------|------------------------------------------|
+    | Foundry Agent Consumer   | (mới)                    | Chỉ gọi agent endpoint (least privilege) |
+    | Foundry User             | Azure AI User            | Reader project + build/test agent (data) |
+    | Foundry Project Manager  | Azure AI Project Manager | Quản lý project, gán Foundry User        |
+    | Foundry Account Owner    | Azure AI Account Owner   | Full quản lý account + projects          |
+    | Foundry Owner            | Azure AI Owner           | Full quản lý + build                     |
+    | Cognitive Services Usages Reader | —                | Xem quota (gán ở SUBSCRIPTION scope)     |
+    * `Azure AI Developer`: KHÔNG đổi tên nhưng ĐỪNG dùng cho Foundry project/agent
+      (nó gắn với ML workspace / Foundry *hub*) -> thay bằng Foundry User / Project Manager.
+    * Cho Foundry: TRÁNH role bắt đầu bằng "Cognitive Services …" (trừ Usages Reader).
+  (B) Data-plane khác (tên không đổi):
+    | Cognitive Services OpenAI User / Contributor | Azure OpenAI *classic*: gọi / tạo-sửa deployment, fine-tune |
+    | Search Index Data Reader / Contributor       | Query / ingest tài liệu vào index (RAG)                     |
+    | Storage Blob Data Reader / Contributor       | Đọc / ghi blob (ingest RAG, output)                         |
+  (C) Chung ARM (quản lý tài nguyên, không phải data-plane):
+    | Owner / Contributor / Reader / User Access Administrator |
+    -> keyless (DefaultAzureCredential) chỉ chạy khi principal có role DATA-PLANE đúng (B/A).
+    Nguồn: learn.microsoft.com/azure/ai-foundry/concepts/rbac-azure-ai-foundry (ms.date 2026-11-18).
 """
 
 # ── stdlib ──────────────────────────────────────────────────────

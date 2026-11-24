@@ -40,7 +40,7 @@
 
 - **Mục tiêu:** gán role ở các SCOPE khác nhau (subscription/rg/resource) + bảng built-in AI roles hay dùng.
 - **SDK:** `azure-mgmt-authorization`. **ENV:** thêm `RBAC_SCOPE_LEVEL`, `RBAC_TARGET_RESOURCE_ID`.
-- **Thi nhớ:** 4 cấp scope thừa kế xuống; chọn cấp thấp nhất đủ dùng. Built-in role: *Azure AI Developer*, *Cognitive Services OpenAI User*, *Search Index Data Reader/Contributor*, *Storage Blob Data …*.
+- **Thi nhớ:** 4 cấp scope thừa kế xuống; chọn cấp thấp nhất đủ dùng. Built-in role Foundry (2026, đã đổi tên): *Foundry User* (cũ: Azure AI User), *Foundry Project Manager*, *Foundry Owner*, *Foundry Agent Consumer*; đừng dùng *Azure AI Developer* cho Foundry project. Data-plane khác: *Cognitive Services OpenAI User* (Azure OpenAI classic), *Search Index Data Reader/Contributor*, *Storage Blob Data …*.
 
 ### `04_rbac_managed_identity_keyless.py`
 
