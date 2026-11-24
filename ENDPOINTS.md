@@ -37,7 +37,7 @@ Nhìn **đuôi domain** để biết loại endpoint và scope token keyless tư
 | Đuôi domain | Loại | Token scope (keyless) | Dịch vụ |
 |-------------|------|-----------------------|---------|
 | `*.services.ai.azure.com` | Foundry project / AI Services | `https://ai.azure.com/.default` | Foundry project, Content Understanding |
-| `*.openai.azure.com` | Azure OpenAI / Foundry Models | `https://cognitiveservices.azure.com/.default` | Chat, embedding, image, Foundry Models /v1 |
+| `*.openai.azure.com` | Azure OpenAI / Foundry Models | `https://ai.azure.com/.default` | Chat, embedding, image, Foundry Models /v1 |
 | `*.cognitiveservices.azure.com` | AI Services (đa dịch vụ) | `https://cognitiveservices.azure.com/.default` | Vision, Language, Content Safety, Document Intelligence |
 | `*.search.windows.net` | Azure AI Search | `https://search.azure.com/.default` | RAG index, knowledge base |
 | `*.cognitive.microsofttranslator.com` | Translator | (thường dùng key + region) | Translator |
@@ -59,13 +59,17 @@ Foundry Models non-OpenAI (Llama/Mistral/DeepSeek/Cohere) cũng gọi qua **Open
 
 ```python
 from azure.identity import DefaultAzureCredential, get_bearer_token_provider
-# Azure OpenAI / Foundry Models (/v1):
-token = get_bearer_token_provider(DefaultAzureCredential(), "https://cognitiveservices.azure.com/.default")
+# Azure OpenAI / Foundry Models (/v1, openai SDK):  (verified Microsoft Learn 2026-10)
+token = get_bearer_token_provider(DefaultAzureCredential(), "https://ai.azure.com/.default")
 # Foundry project (AIProjectClient) / Content Understanding:
 #   scope = "https://ai.azure.com/.default"
+# AI Services khác keyless — Vision/Language/Content Safety/Document Intelligence (*.cognitiveservices.azure.com):
+#   scope = "https://cognitiveservices.azure.com/.default"
 # Azure AI Search:
 #   scope = "https://search.azure.com/.default"
 ```
+> ⚠️ Dễ nhầm: Azure OpenAI /v1 dùng **`ai.azure.com/.default`** (KHÔNG phải `cognitiveservices.azure.com/.default`).
+> Scope `cognitiveservices.azure.com/.default` là cho các AI service khác (Vision/Language/…), không phải OpenAI /v1.
 
 OpenAI /v1 keyless: truyền token provider vào tham số `api_key=` (SDK tự refresh).
 
