@@ -12,6 +12,24 @@
 
 Hai portal dùng chung **Entra ID**. Foundry resource tạo ở `ai.azure.com` vẫn hiện trong `portal.azure.com`.
 
+## 1b. Studio — web UI thử nhanh từng dịch vụ (đang gộp vào Foundry, 2026)
+
+> **Xu hướng 2026:** Microsoft đang **gộp các Studio đứng riêng vào Microsoft Foundry Portal** (`ai.azure.com`).
+> Chỗ "thử trực tiếp trên web" nên ưu tiên dùng **Playgrounds trong Foundry** (Build → Playgrounds).
+> Các URL Studio cũ phần lớn **vẫn mở được nhưng redirect / sắp retire** — nhớ cho đỡ lạc, đừng phụ thuộc lâu dài.
+
+| Studio | URL (cũ/đứng riêng) | Trạng thái 2026 | Thử gì |
+|--------|---------------------|-----------------|--------|
+| **Foundry Playgrounds** | `ai.azure.com` → Build → Playgrounds | ✅ **Nhà mới** của hầu hết playground | Chat, agent, model, image, speech, vision… |
+| Vision Studio | `portal.vision.cognitive.azure.com` | 🔁 Redirect vào Foundry / đang retire *(nguồn phụ)* | Image Analysis, OCR/Read, objects |
+| Language Studio | `language.azure.com` | ⏳ Còn chạy, **migrate vào Foundry 20/03/2027** | NER, PII, sentiment, CLU, summarization |
+| Speech Studio | `speech.microsoft.com` | ⚠️ *Chưa xác minh lại 2026* — đang chuyển vào Foundry | STT, TTS, SSML, custom voice |
+| Content Safety Studio | `contentsafety.cognitive.azure.com` | ⚠️ *Chưa xác minh lại 2026* — Content Safety là Foundry Tool | Thử lọc text/image có hại, severity |
+| Document Intelligence Studio | `documentintelligence.ai.azure.com` | ⚠️ *Chưa xác minh lại 2026* — đang migrate vào Foundry | Layout, prebuilt (invoice/ID), custom model |
+| Custom Vision | `customvision.ai` | ⚠️ *Chưa xác minh lại 2026* | Train classifier/object detection custom |
+
+> ⚠️ = URL theo trí nhớ, **chưa kiểm chứng lại ở thời điểm 2026** (các Studio này không có trang Learn xác nhận URL khi tra). Nếu bị redirect, tìm playground tương ứng trong Foundry Portal. ✅/🔁/⏳ = đã xác nhận qua Microsoft Learn / Q&A (11/2026).
+
 ## 2. Endpoint dịch vụ (dùng trong code) — theo đuôi domain
 
 Nhìn **đuôi domain** để biết loại endpoint và scope token keyless tương ứng:
