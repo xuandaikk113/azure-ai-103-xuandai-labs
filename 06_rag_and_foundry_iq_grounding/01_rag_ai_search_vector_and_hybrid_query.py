@@ -4,7 +4,7 @@ LAB 06/01 · Azure AI Search: vector + hybrid query
 --------------------------------------------------------------------
 Dịch vụ      : Azure AI Search + Azure OpenAI (embedding)
 Biến .env    : AZURE_SEARCH_ENDPOINT, AZURE_SEARCH_API_KEY, AZURE_SEARCH_INDEX,
-               AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_API_KEY, AZURE_OPENAI_API_VERSION, AZURE_OPENAI_EMBEDDING_DEPLOYMENT
+               AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_API_KEY, AZURE_OPENAI_EMBEDDING_DEPLOYMENT (v1: bỏ api_version)
 SDK tiền nhiệm: Azure Cognitive Search -> Azure AI Search (azure-search-documents).
 Chạy         : uv run 06_rag_and_foundry_iq_grounding/01_rag_ai_search_vector_and_hybrid_query.py
 Giả định     : index có field 'contentVector' (vector) và 'content' (text).
@@ -30,7 +30,7 @@ from azure.core.credentials import AzureKeyCredential
 from azure.search.documents import SearchClient
 # VectorizedQuery: truy vấn bằng vector đã tính sẵn (ta tự tạo embedding).
 from azure.search.documents.models import VectorizedQuery
-from openai import AzureOpenAI   # tạo embedding cho câu truy vấn
+from openai import OpenAI   # tạo embedding cho câu truy vấn (client v1 khuyến nghị)
 
 
 def require_env(*names: str) -> dict:
@@ -48,15 +48,14 @@ def main() -> None:
     cfg = require_env(
         "AZURE_SEARCH_ENDPOINT", "AZURE_SEARCH_API_KEY", "AZURE_SEARCH_INDEX",
         "AZURE_OPENAI_ENDPOINT", "AZURE_OPENAI_API_KEY",
-        "AZURE_OPENAI_API_VERSION", "AZURE_OPENAI_EMBEDDING_DEPLOYMENT",
+        "AZURE_OPENAI_EMBEDDING_DEPLOYMENT",
     )
     query = "Chính sách đổi trả hàng thế nào?"
 
     # 1) Tạo embedding cho câu truy vấn (text -> vector)
-    aoai = AzureOpenAI(
-        azure_endpoint=cfg["AZURE_OPENAI_ENDPOINT"],
+    aoai = OpenAI(
+        base_url=cfg["AZURE_OPENAI_ENDPOINT"].rstrip("/") + "/openai/v1/",
         api_key=cfg["AZURE_OPENAI_API_KEY"],
-        api_version=cfg["AZURE_OPENAI_API_VERSION"],
     )
     embedding = aoai.embeddings.create(
         model=cfg["AZURE_OPENAI_EMBEDDING_DEPLOYMENT"], input=query,

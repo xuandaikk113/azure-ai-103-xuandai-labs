@@ -3,7 +3,7 @@
 LAB 01/06 · Fine-tuning (model customization)
 --------------------------------------------------------------------
 Dịch vụ      : Azure OpenAI fine-tuning (+ ARM để deploy model đã fine-tune)
-Biến .env    : AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_API_KEY, AZURE_OPENAI_API_VERSION,
+Biến .env    : AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_API_KEY (v1: bỏ api_version),
                AZURE_SUBSCRIPTION_ID, AZURE_RESOURCE_GROUP, AOAI_ACCOUNT_NAME
 SDK tiền nhiệm: fine-tune qua REST/portal.
 Chạy         : uv run 01_foundry_setup_and_deployments/06_finetune_model_customization.py
@@ -25,7 +25,7 @@ except Exception:
 from dotenv import load_dotenv
 
 # ── SDK ─────────────────────────────────────────────────────────
-from openai import AzureOpenAI   # fine_tuning.jobs nằm trong client AzureOpenAI
+from openai import OpenAI   # client v1 (khuyến nghị); fine_tuning.jobs dùng y hệt
 
 
 def require_env(*names: str) -> dict:
@@ -40,12 +40,12 @@ def require_env(*names: str) -> dict:
 
 
 def main() -> None:
-    cfg = require_env("AZURE_OPENAI_ENDPOINT", "AZURE_OPENAI_API_KEY", "AZURE_OPENAI_API_VERSION")
+    cfg = require_env("AZURE_OPENAI_ENDPOINT", "AZURE_OPENAI_API_KEY")
 
-    client = AzureOpenAI(
-        azure_endpoint=cfg["AZURE_OPENAI_ENDPOINT"],
+    # Cách KHUYẾN NGHỊ (v1): base_url trỏ /openai/v1/, không cần api_version.
+    client = OpenAI(
+        base_url=cfg["AZURE_OPENAI_ENDPOINT"].rstrip("/") + "/openai/v1/",
         api_key=cfg["AZURE_OPENAI_API_KEY"],
-        api_version=cfg["AZURE_OPENAI_API_VERSION"],
     )
 
     # 1) Upload file train (JSONL: mỗi dòng 1 ví dụ hội thoại {"messages":[...]})

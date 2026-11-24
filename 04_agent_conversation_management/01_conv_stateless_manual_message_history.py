@@ -3,7 +3,7 @@
 LAB 04/01 · Hội thoại stateless: tự quản mảng messages + tự cắt lịch sử
 --------------------------------------------------------------------
 Dịch vụ      : Azure OpenAI
-Biến .env    : AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_API_KEY, AZURE_OPENAI_API_VERSION, AZURE_OPENAI_CHAT_DEPLOYMENT
+Biến .env    : AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_API_KEY, AZURE_OPENAI_CHAT_DEPLOYMENT (v1: bỏ api_version)
 SDK tiền nhiệm: cách cơ bản nhất, chưa dùng state phía server.
 Chạy         : uv run 04_agent_conversation_management/01_conv_stateless_manual_message_history.py
 ====================================================================
@@ -22,7 +22,7 @@ except Exception:
 from dotenv import load_dotenv
 
 # ── SDK ─────────────────────────────────────────────────────────
-from openai import AzureOpenAI
+from openai import OpenAI   # client trỏ endpoint Azure OpenAI /v1 (cách khuyến nghị)
 
 
 def require_env(*names: str) -> dict:
@@ -46,13 +46,17 @@ def trim_history(messages: list, max_turns: int = 6) -> list:
 def main() -> None:
     cfg = require_env(
         "AZURE_OPENAI_ENDPOINT", "AZURE_OPENAI_API_KEY",
-        "AZURE_OPENAI_API_VERSION", "AZURE_OPENAI_CHAT_DEPLOYMENT",
+        "AZURE_OPENAI_CHAT_DEPLOYMENT",
     )
-    client = AzureOpenAI(
-        azure_endpoint=cfg["AZURE_OPENAI_ENDPOINT"],
+    # Cách KHUYẾN NGHỊ (v1): base_url trỏ /openai/v1/, KHÔNG cần api_version.
+    client = OpenAI(
+        base_url=cfg["AZURE_OPENAI_ENDPOINT"].rstrip("/") + "/openai/v1/",
         api_key=cfg["AZURE_OPENAI_API_KEY"],
-        api_version=cfg["AZURE_OPENAI_API_VERSION"],
     )
+    # Alternative CLASSIC (vẫn hỗ trợ, chưa deprecated) - xem file 02/01:
+    #   from openai import AzureOpenAI
+    #   client = AzureOpenAI(azure_endpoint=cfg["AZURE_OPENAI_ENDPOINT"],
+    #                        api_key=cfg["AZURE_OPENAI_API_KEY"], api_version="2025-04-01-preview")
     deployment = cfg["AZURE_OPENAI_CHAT_DEPLOYMENT"]
 
     # CLIENT tự giữ toàn bộ lịch sử trong biến messages (stateless phía server)

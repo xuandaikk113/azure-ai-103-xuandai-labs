@@ -1,10 +1,10 @@
 """
 ====================================================================
-LAB 01/01 · Auth: API key vs DefaultAzureCredential (keyless)
+LAB 01/01 · Auth: API key vs DefaultAzureCredential (keyless) — qua OpenAI /v1
 --------------------------------------------------------------------
-Dịch vụ      : Azure OpenAI (qua openai SDK)
-Biến .env    : AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_API_KEY, AZURE_OPENAI_API_VERSION, AZURE_OPENAI_CHAT_DEPLOYMENT
-SDK tiền nhiệm: trước đây hay hard-code API key / dùng azure-common.
+Dịch vụ      : Azure OpenAI (endpoint /v1, qua openai SDK)
+Biến .env    : AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_API_KEY, AZURE_OPENAI_CHAT_DEPLOYMENT
+SDK tiền nhiệm: hard-code API key / AzureOpenAI(api_version=...) -> nay dùng OpenAI /v1.
 Chạy         : uv run 01_foundry_setup_and_deployments/01_auth_api_key_vs_default_credential.py
 ====================================================================
 """
@@ -23,13 +23,14 @@ except Exception:
 from dotenv import load_dotenv
 
 # ── xác thực ────────────────────────────────────────────────────
-# azure-identity: keyless. get_bearer_token_provider bọc credential thành hàm trả token
-# đúng chuẩn mà openai SDK cần (azure_ad_token_provider).
+# azure-identity: keyless. get_bearer_token_provider trả 1 hàm token -> truyền thẳng vào
+# api_key của OpenAI client để TỰ ĐỘNG lấy & làm mới token (không cần secret tĩnh).
 from azure.identity import DefaultAzureCredential, get_bearer_token_provider
 
 # ── SDK Azure OpenAI ────────────────────────────────────────────
-# openai>=1.x: lớp AzureOpenAI. (Tiền nhiệm: openai<1.0 dùng openai.ChatCompletion.create.)
-from openai import AzureOpenAI
+# openai (lớp OpenAI thuần) + base_url /openai/v1/ là cách KHUYẾN NGHỊ (không cần api_version).
+# (Tiền nhiệm: AzureOpenAI(azure_endpoint=..., api_version=...) — vẫn chạy nhưng không còn ưu tiên.)
+from openai import OpenAI
 
 
 def require_env(*names: str) -> dict:
@@ -43,47 +44,35 @@ def require_env(*names: str) -> dict:
     return values
 
 
-def ask_model(client: AzureOpenAI, deployment: str, method: str) -> None:
+def ask_model(client: OpenAI, deployment: str, method: str) -> None:
     """Gửi 1 câu hỏi ngắn để chứng minh client hoạt động."""
-    resp = client.chat.completions.create(
-        model=deployment,       # LƯU Ý: 'model' = tên DEPLOYMENT, không phải tên model gốc
-        messages=[{"role": "user", "content": "Trả lời đúng 1 từ: Azure"}],
-        max_tokens=5,
+    resp = client.responses.create(
+        model=deployment,          # 'model' = tên DEPLOYMENT
+        input="Trả lời đúng 1 từ: Azure",
     )
-    print(f"[{method}] -> {resp.choices[0].message.content!r}")
+    print(f"[{method}] -> {resp.output_text!r}")
 
 
 def main() -> None:
-    cfg = require_env(
-        "AZURE_OPENAI_ENDPOINT", "AZURE_OPENAI_API_KEY",
-        "AZURE_OPENAI_API_VERSION", "AZURE_OPENAI_CHAT_DEPLOYMENT",
-    )
-    endpoint = cfg["AZURE_OPENAI_ENDPOINT"]
-    api_version = cfg["AZURE_OPENAI_API_VERSION"]
+    cfg = require_env("AZURE_OPENAI_ENDPOINT", "AZURE_OPENAI_API_KEY", "AZURE_OPENAI_CHAT_DEPLOYMENT")
+    base_url = cfg["AZURE_OPENAI_ENDPOINT"].rstrip("/") + "/openai/v1/"
     deployment = cfg["AZURE_OPENAI_CHAT_DEPLOYMENT"]
 
     # ── CÁCH 1: API key (đơn giản nhưng key là bí mật, dễ lộ) ──
-    client_key = AzureOpenAI(
-        azure_endpoint=endpoint,
-        api_key=cfg["AZURE_OPENAI_API_KEY"],
-        api_version=api_version,
-    )
+    client_key = OpenAI(base_url=base_url, api_key=cfg["AZURE_OPENAI_API_KEY"])
     ask_model(client_key, deployment, "api_key")
 
-    # ── CÁCH 2: keyless (DefaultAzureCredential) — BEST PRACTICE ──
+    # ── CÁCH 2: keyless (Entra ID) — BEST PRACTICE ──
     # Bật log để thấy nó thử EnvironmentCredential -> ManagedIdentity -> AzureCli ...
     logging.basicConfig(level=logging.WARNING)
     logging.getLogger("azure.identity").setLevel(logging.INFO)
 
     token_provider = get_bearer_token_provider(
         DefaultAzureCredential(),
-        "https://cognitiveservices.azure.com/.default",   # scope token của Azure OpenAI
+        "https://ai.azure.com/.default",   # scope token cho OpenAI /v1 (khác scope của Inference SDK cũ)
     )
-    client_keyless = AzureOpenAI(
-        azure_endpoint=endpoint,
-        azure_ad_token_provider=token_provider,           # thay cho api_key
-        api_version=api_version,
-    )
+    # Truyền token_provider vào api_key -> openai SDK tự lấy/làm mới token.
+    client_keyless = OpenAI(base_url=base_url, api_key=token_provider)
     ask_model(client_keyless, deployment, "keyless")
 
     print("\nKết luận: ưu tiên keyless (Entra ID) — không secret, cấp quyền qua RBAC.")

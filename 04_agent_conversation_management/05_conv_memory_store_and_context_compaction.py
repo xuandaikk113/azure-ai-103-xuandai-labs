@@ -3,7 +3,7 @@
 LAB 04/05 · Bộ nhớ dài hạn + nén ngữ cảnh (context compaction)
 --------------------------------------------------------------------
 Dịch vụ      : Azure OpenAI
-Biến .env    : AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_API_KEY, AZURE_OPENAI_API_VERSION, AZURE_OPENAI_CHAT_DEPLOYMENT
+Biến .env    : AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_API_KEY, AZURE_OPENAI_CHAT_DEPLOYMENT (v1: bỏ api_version)
 SDK tiền nhiệm: không.
 Chạy         : uv run 04_agent_conversation_management/05_conv_memory_store_and_context_compaction.py
 Lưu ý        : Foundry có FoundryMemoryProvider (memory được quản lý). Ở đây minh hoạ thủ công:
@@ -25,7 +25,7 @@ except Exception:
 from dotenv import load_dotenv
 
 # ── SDK ─────────────────────────────────────────────────────────
-from openai import AzureOpenAI
+from openai import OpenAI   # client trỏ endpoint Azure OpenAI /v1 (cách khuyến nghị)
 
 MEMORY_FILE = os.path.join("assets", "output", "user_memory.json")
 
@@ -67,13 +67,17 @@ def compact_context(client, deployment, messages: list) -> str:
 def main() -> None:
     cfg = require_env(
         "AZURE_OPENAI_ENDPOINT", "AZURE_OPENAI_API_KEY",
-        "AZURE_OPENAI_API_VERSION", "AZURE_OPENAI_CHAT_DEPLOYMENT",
+        "AZURE_OPENAI_CHAT_DEPLOYMENT",
     )
-    client = AzureOpenAI(
-        azure_endpoint=cfg["AZURE_OPENAI_ENDPOINT"],
+    # Cách KHUYẾN NGHỊ (v1): base_url trỏ /openai/v1/, KHÔNG cần api_version.
+    client = OpenAI(
+        base_url=cfg["AZURE_OPENAI_ENDPOINT"].rstrip("/") + "/openai/v1/",
         api_key=cfg["AZURE_OPENAI_API_KEY"],
-        api_version=cfg["AZURE_OPENAI_API_VERSION"],
     )
+    # Alternative CLASSIC (vẫn hỗ trợ, chưa deprecated) - xem file 02/01:
+    #   from openai import AzureOpenAI
+    #   client = AzureOpenAI(azure_endpoint=cfg["AZURE_OPENAI_ENDPOINT"],
+    #                        api_key=cfg["AZURE_OPENAI_API_KEY"], api_version="2025-04-01-preview")
     deployment = cfg["AZURE_OPENAI_CHAT_DEPLOYMENT"]
 
     # 1) BỘ NHỚ DÀI HẠN: ghi nhớ fact của người dùng (bền qua nhiều phiên)

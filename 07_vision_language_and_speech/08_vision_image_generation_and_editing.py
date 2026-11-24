@@ -3,8 +3,9 @@
 LAB 07/08 · Image generation + editing (text-to-image, inpainting)
 --------------------------------------------------------------------
 Dịch vụ      : Azure OpenAI (model image, vd gpt-image-1)
-Biến .env    : AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_API_KEY, AZURE_OPENAI_API_VERSION, AZURE_OPENAI_IMAGE_DEPLOYMENT
+Biến .env    : AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_API_KEY, AZURE_OPENAI_IMAGE_DEPLOYMENT (v1: bỏ api_version)
 SDK tiền nhiệm: không.
+Lưu ý        : tạo ảnh/video đôi khi cần api-version preview -> nếu v1 GA chưa hỗ trợ, dùng AzureOpenAI (comment).
 Chạy         : uv run 07_vision_language_and_speech/08_vision_image_generation_and_editing.py
 ====================================================================
 """
@@ -23,7 +24,7 @@ except Exception:
 from dotenv import load_dotenv
 
 # ── SDK ─────────────────────────────────────────────────────────
-from openai import AzureOpenAI
+from openai import OpenAI   # client v1 (khuyến nghị)
 
 OUTPUT_DIR = os.path.join("assets", "output")
 
@@ -41,14 +42,13 @@ def require_env(*names: str) -> dict:
 
 def main() -> None:
     cfg = require_env(
-        "AZURE_OPENAI_ENDPOINT", "AZURE_OPENAI_API_KEY",
-        "AZURE_OPENAI_API_VERSION", "AZURE_OPENAI_IMAGE_DEPLOYMENT",
+        "AZURE_OPENAI_ENDPOINT", "AZURE_OPENAI_API_KEY", "AZURE_OPENAI_IMAGE_DEPLOYMENT",
     )
     os.makedirs(OUTPUT_DIR, exist_ok=True)
-    client = AzureOpenAI(
-        azure_endpoint=cfg["AZURE_OPENAI_ENDPOINT"],
+    # Cách KHUYẾN NGHỊ (v1). Nếu model image chưa có trong v1 GA, dùng AzureOpenAI + api_version preview.
+    client = OpenAI(
+        base_url=cfg["AZURE_OPENAI_ENDPOINT"].rstrip("/") + "/openai/v1/",
         api_key=cfg["AZURE_OPENAI_API_KEY"],
-        api_version=cfg["AZURE_OPENAI_API_VERSION"],
     )
     deployment = cfg["AZURE_OPENAI_IMAGE_DEPLOYMENT"]
 

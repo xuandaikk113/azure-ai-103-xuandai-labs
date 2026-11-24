@@ -3,7 +3,7 @@
 LAB 02/05 · Multimodal input (ảnh + text)
 --------------------------------------------------------------------
 Dịch vụ      : Azure OpenAI (model multimodal, vd gpt-4o)
-Biến .env    : AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_API_KEY, AZURE_OPENAI_API_VERSION, AZURE_OPENAI_CHAT_DEPLOYMENT
+Biến .env    : AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_API_KEY, AZURE_OPENAI_CHAT_DEPLOYMENT (v1: bỏ api_version)
 SDK tiền nhiệm: không.
 Chạy         : uv run 02_genai_chat_alternatives/05_chat_multimodal_vision_and_audio_input.py
 Cần          : ảnh mẫu tại assets/sample_image.jpg
@@ -24,7 +24,7 @@ except Exception:
 from dotenv import load_dotenv
 
 # ── SDK ─────────────────────────────────────────────────────────
-from openai import AzureOpenAI
+from openai import OpenAI   # client trỏ endpoint Azure OpenAI /v1 (cách khuyến nghị)
 
 
 def require_env(*names: str) -> dict:
@@ -41,13 +41,17 @@ def require_env(*names: str) -> dict:
 def main() -> None:
     cfg = require_env(
         "AZURE_OPENAI_ENDPOINT", "AZURE_OPENAI_API_KEY",
-        "AZURE_OPENAI_API_VERSION", "AZURE_OPENAI_CHAT_DEPLOYMENT",
+        "AZURE_OPENAI_CHAT_DEPLOYMENT",
     )
-    client = AzureOpenAI(
-        azure_endpoint=cfg["AZURE_OPENAI_ENDPOINT"],
+    # Cách KHUYẾN NGHỊ (v1): base_url trỏ /openai/v1/, KHÔNG cần api_version.
+    client = OpenAI(
+        base_url=cfg["AZURE_OPENAI_ENDPOINT"].rstrip("/") + "/openai/v1/",
         api_key=cfg["AZURE_OPENAI_API_KEY"],
-        api_version=cfg["AZURE_OPENAI_API_VERSION"],
     )
+    # Alternative CLASSIC (vẫn hỗ trợ, chưa deprecated) - xem file 02/01:
+    #   from openai import AzureOpenAI
+    #   client = AzureOpenAI(azure_endpoint=cfg["AZURE_OPENAI_ENDPOINT"],
+    #                        api_key=cfg["AZURE_OPENAI_API_KEY"], api_version="2025-04-01-preview")
 
     # Đọc ảnh -> base64 -> data URL
     image_path = os.path.join("assets", "sample_image.jpg")

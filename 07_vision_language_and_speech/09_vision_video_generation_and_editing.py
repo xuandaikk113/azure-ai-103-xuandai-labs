@@ -3,7 +3,7 @@
 LAB 07/09 · Video generation (text-to-video) — ví dụ Sora trên Foundry
 --------------------------------------------------------------------
 Dịch vụ      : Azure OpenAI / Foundry (model video, vd Sora)
-Biến .env    : AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_API_KEY, AZURE_OPENAI_API_VERSION, AZURE_OPENAI_VIDEO_DEPLOYMENT
+Biến .env    : AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_API_KEY, AZURE_OPENAI_VIDEO_DEPLOYMENT (v1: bỏ api_version)
 SDK tiền nhiệm: không.
 Chạy         : uv run 07_vision_language_and_speech/09_vision_video_generation_and_editing.py
 ⚠ Lưu ý      : Tạo video là tác vụ LONG-RUNNING (job). API video có thể khác giữa các bản —
@@ -25,7 +25,7 @@ except Exception:
 from dotenv import load_dotenv
 
 # ── SDK ─────────────────────────────────────────────────────────
-from openai import AzureOpenAI
+from openai import OpenAI   # client v1 (khuyến nghị)
 
 OUTPUT_DIR = os.path.join("assets", "output")
 
@@ -43,14 +43,13 @@ def require_env(*names: str) -> dict:
 
 def main() -> None:
     cfg = require_env(
-        "AZURE_OPENAI_ENDPOINT", "AZURE_OPENAI_API_KEY",
-        "AZURE_OPENAI_API_VERSION", "AZURE_OPENAI_VIDEO_DEPLOYMENT",
+        "AZURE_OPENAI_ENDPOINT", "AZURE_OPENAI_API_KEY", "AZURE_OPENAI_VIDEO_DEPLOYMENT",
     )
     os.makedirs(OUTPUT_DIR, exist_ok=True)
-    client = AzureOpenAI(
-        azure_endpoint=cfg["AZURE_OPENAI_ENDPOINT"],
+    # Cách KHUYẾN NGHỊ (v1). Nếu model video chưa có trong v1 GA, dùng AzureOpenAI + api_version preview.
+    client = OpenAI(
+        base_url=cfg["AZURE_OPENAI_ENDPOINT"].rstrip("/") + "/openai/v1/",
         api_key=cfg["AZURE_OPENAI_API_KEY"],
-        api_version=cfg["AZURE_OPENAI_API_VERSION"],
     )
 
     # 1) Tạo job sinh video từ prompt (long-running)
