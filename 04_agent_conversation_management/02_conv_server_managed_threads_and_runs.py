@@ -48,25 +48,31 @@ def main() -> None:
         AIProjectClient(endpoint=cfg["FOUNDRY_PROJECT_ENDPOINT"], credential=credential) as project,
         project.get_openai_client() as openai_client,
     ):
-        # 1) Tạo conversation (server GIỮ lịch sử — khác lab 04/01 stateless)
-        conversation = openai_client.conversations.create(
-            items=[{"type": "message", "role": "user", "content": "Thủ đô Việt Nam là gì?"}],
-        )
+        # 1) Tạo conversation RỖNG (server GIỮ lịch sử — khác lab 04/01 stateless)
+        conversation = openai_client.conversations.create()
         print("conversation id:", conversation.id)
 
-        # 2) Sinh câu trả lời dựa trên conversation (không cần gửi lại lịch sử)
-        r1 = openai_client.responses.create(model=model, conversation=conversation.id)
-        print("Lượt 1:", r1.output_text)
+        # 2) Vòng lặp chat LIÊN TỤC ở CLI — gõ câu hỏi, 'quit'/'exit' để thoát.
+        #    Mỗi lượt: thêm message của user vào conversation rồi gọi responses.create.
+        #    Không cần gửi lại lịch sử — server tự nhớ ngữ cảnh qua conversation.id.
+        print("Bắt đầu chat (gõ 'quit' / 'exit' để dừng).")
+        try:
+            while True:
+                user_message = input("\nBạn > ").strip()
+                if user_message.lower() in {"quit", "exit", "thoat", ""}:
+                    break
+                openai_client.conversations.items.create(
+                    conversation_id=conversation.id,
+                    items=[{"type": "message", "role": "user", "content": user_message}],
+                )
+                assistant_response = openai_client.responses.create(
+                    model=model, conversation=conversation.id,
+                )
+                print("Bot >", assistant_response.output_text)
+        except (EOFError, KeyboardInterrupt):
+            print("\n(Đã dừng bằng Ctrl-C / EOF)")
 
-        # 3) Thêm lượt hỏi mới vào conversation rồi trả lời tiếp (server tự nhớ ngữ cảnh)
-        openai_client.conversations.items.create(
-            conversation_id=conversation.id,
-            items=[{"type": "message", "role": "user", "content": "Thành phố đó có gì nổi tiếng?"}],
-        )
-        r2 = openai_client.responses.create(model=model, conversation=conversation.id)
-        print("Lượt 2:", r2.output_text)
-
-        # 4) Dọn dẹp
+        # 3) Dọn dẹp
         openai_client.conversations.delete(conversation_id=conversation.id)
         print("Đã xoá conversation.")
 

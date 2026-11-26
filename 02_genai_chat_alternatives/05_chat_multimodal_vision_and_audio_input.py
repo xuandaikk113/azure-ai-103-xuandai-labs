@@ -52,6 +52,11 @@ def main() -> None:
     #   from openai import AzureOpenAI
     #   client = AzureOpenAI(azure_endpoint=cfg["AZURE_OPENAI_ENDPOINT"],
     #                        api_key=cfg["AZURE_OPENAI_API_KEY"], api_version="2025-04-01-preview")
+    # Alternative KEYLESS (khuyến nghị production) — không cần API key, dùng Entra ID:
+    #   from azure.identity import DefaultAzureCredential, get_bearer_token_provider
+    #   token_provider = get_bearer_token_provider(
+    #       DefaultAzureCredential(), "https://ai.azure.com/.default")   # scope token cho /openai/v1
+    #   client = OpenAI(base_url=..., api_key=token_provider)            # truyền token provider vào api_key
 
     # Đọc ảnh -> base64 -> data URL
     image_path = os.path.join("assets", "sample_image.jpg")
@@ -61,9 +66,15 @@ def main() -> None:
         b64 = base64.b64encode(f.read()).decode()
     data_url = f"data:image/jpeg;base64,{b64}"
 
-    # message content là danh sách 'part': vừa text vừa ảnh
-    resp = client.chat.completions.create(
-        model=cfg["AZURE_OPENAI_CHAT_DEPLOYMENT"],
+    deployment = cfg["AZURE_OPENAI_CHAT_DEPLOYMENT"]
+
+    # ─────────────────────────────────────────────────────────────
+    # CÁCH 1 · chat.completions + ảnh dạng BASE64 (data URL)
+    # message content là danh sách 'part': vừa text vừa ảnh.
+    # Dùng base64 khi ảnh nằm ở máy/local, KHÔNG có URL công khai.
+    # ─────────────────────────────────────────────────────────────
+    chat_response = client.chat.completions.create(
+        model=deployment,
         messages=[{
             "role": "user",
             "content": [
@@ -72,7 +83,47 @@ def main() -> None:
             ],
         }],
     )
-    print("Mô tả ảnh:", resp.choices[0].message.content)
+    print("[base64 + chat.completions] Mô tả ảnh:", chat_response.choices[0].message.content)
+
+    # ─────────────────────────────────────────────────────────────
+    # CÁCH 2 · ảnh dạng IMAGE URL công khai (không cần base64)
+    # Khi ảnh đã có URL công khai (vd trên Blob/CDN) thì truyền THẲNG url,
+    # nhẹ hơn nhiều so với nhúng cả base64 vào request.
+    # ─────────────────────────────────────────────────────────────
+    public_image_url = (
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/d/dd/"
+        "Gfp-wisconsin-madison-the-nature-boardwalk.jpg/2560px-"
+        "Gfp-wisconsin-madison-the-nature-boardwalk.jpg"
+    )  # đổi thành URL ảnh công khai bất kỳ
+    chat_response_from_url = client.chat.completions.create(
+        model=deployment,
+        messages=[{
+            "role": "user",
+            "content": [
+                {"type": "text", "text": "Trong ảnh có gì?"},
+                # chỉ khác CÁCH 1 ở chỗ 'url' là http URL thật, không phải data URL base64
+                {"type": "image_url", "image_url": {"url": public_image_url}},
+            ],
+        }],
+    )
+    print("[image url + chat.completions] Mô tả ảnh:", chat_response_from_url.choices[0].message.content)
+
+    # ─────────────────────────────────────────────────────────────
+    # CÁCH 3 · Responses API (chuẩn mới) — cùng input ảnh nhưng CÚ PHÁP KHÁC
+    #   chat.completions: part {"type": "image_url", "image_url": {"url": ...}}
+    #   responses       : part {"type": "input_image", "image_url": "<url hoặc data url>"}
+    # ─────────────────────────────────────────────────────────────
+    image_response = client.responses.create(
+        model=deployment,
+        input=[{
+            "role": "user",
+            "content": [
+                {"type": "input_text", "text": "Mô tả ngắn gọn ảnh này bằng tiếng Việt."},
+                {"type": "input_image", "image_url": public_image_url},   # hoặc dùng lại data_url base64
+            ],
+        }],
+    )
+    print("[image url + responses]       Mô tả ảnh:", image_response.output_text)
 
     # Lưu ý bảo mật: cảnh giác PROMPT INJECTION ẩn trong chữ của ảnh
     # (ảnh có thể chứa text ra lệnh cho model) -> đừng tin tuyệt đối nội dung từ ảnh.

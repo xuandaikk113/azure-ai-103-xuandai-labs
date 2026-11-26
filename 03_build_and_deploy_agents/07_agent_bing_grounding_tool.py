@@ -80,6 +80,33 @@ def main() -> None:
         finally:
             project.agents.delete_version(agent_name=agent.name, agent_version=agent.version, force=True)
 
+        # ════════════════════════════════════════════════════════════
+        # ALTERNATIVE · web_search tool MẶC ĐỊNH của OpenAI (Responses API)
+        # Khác Bing grounding (phải tạo connection "Grounding with Bing" riêng):
+        # web_search là built-in hosted tool, khai báo THẲNG {"type": "web_search"}
+        # trong request và chạy server-side — không cần tạo agent, gọi trực tiếp
+        # trên model deployment. (web_search_preview là tên cũ, không khuyến nghị.)
+        # ════════════════════════════════════════════════════════════
+        with project.get_openai_client() as openai_client:
+            web_search_response = openai_client.responses.create(
+                model=cfg["FOUNDRY_MODEL"],
+                tools=[{
+                    "type": "web_search",
+                    # (optional) giới hạn nguồn theo domain — bỏ nếu muốn tìm toàn web:
+                    # "filters": {"allowed_domains": ["learn.microsoft.com", "techcrunch.com"]},
+                }],
+                include=["web_search_call.action.sources"],  # (optional) trả kèm URL nguồn đã tra
+                input="Tin công nghệ nổi bật tuần này là gì?",
+            )
+            print("\n[web_search tool] Trả lời:", web_search_response.output_text)
+            # Trích citation: duyệt output item kiểu 'message' -> content -> annotations (url_citation)
+            for output_item in web_search_response.output:
+                if getattr(output_item, "type", None) == "message":
+                    for content_part in output_item.content:
+                        for annotation in getattr(content_part, "annotations", None) or []:
+                            if getattr(annotation, "type", None) == "url_citation":
+                                print("   nguồn:", annotation.title, "-", annotation.url)
+
     # So sánh: Bing grounding = tri thức WEB bên ngoài; khác RAG nội bộ (Azure AI Search, folder 06).
 
 
