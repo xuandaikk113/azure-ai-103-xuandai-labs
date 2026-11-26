@@ -16,6 +16,10 @@
 - **Toàn bộ comment trong code viết bằng tiếng Việt.**
 - **Tên hàm / biến / class BẮT BUỘC viết bằng tiếng Anh**; chỉ comment mới viết tiếng Việt.
   (vd: dùng `ask_model`, không dùng `hoi_model`; `get_exchange_rate`, không dùng `lay_ty_gia`.)
+- **Đặt tên rõ ràng, đầy đủ từ — hạn chế viết tắt** (đây là code để HỌC, ưu tiên đọc hiểu lên hàng đầu).
+  (vd: dùng `response`/`credential`/`deployment_name`/`document_intelligence_client`, không dùng
+  `resp`/`cred`/`dep`/`di_client`; `message_history`, không dùng `msgs`. Chỉ chấp nhận viết tắt đã là
+  chuẩn phổ biến: `id`, `url`, `db`, `sql`, `api`, `json`, `http`, `env`.)
 - Giải thích **ngắn gọn, đúng việc** cho từng dòng/đoạn code — đủ để sau này đọc lại là nhớ.
 - Phần `import` **bắt buộc có comment**: giải thích package làm gì **và nhắc SDK tiền nhiệm nếu có**
   (ví dụ: `Form Recognizer → Document Intelligence`, `Azure Cognitive Search → Azure AI Search`,
