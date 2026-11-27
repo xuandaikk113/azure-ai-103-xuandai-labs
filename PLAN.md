@@ -330,6 +330,13 @@
 - **Các bước:** (1) generator tạo bản nháp. (2) critic chấm/góp ý. (3) lặp tới khi đạt hoặc hết vòng.
 - **Thi nhớ:** reflection nâng chất lượng; cần điều kiện dừng.
 
+### `06_orch_workflow_builder_graph.py` (NÂNG CAO)
+
+- **Mục tiêu:** khi builder dựng sẵn không đủ → tự vẽ GRAPH bằng `WorkflowBuilder` (Executor là node, nối bằng edge, có vòng lặp + điều kiện).
+- **SDK/construct:** `WorkflowBuilder(start_executor=..., max_iterations=...)` + `Executor` subclass + `@handler` + `ctx.send_message()`/`ctx.yield_output()`; thêm demo `GroupChatBuilder.with_termination_condition(callable)` dừng theo marker `PASS`.
+- **Các bước:** (1) GeneratorExecutor/CriticExecutor. (2) add_edge tạo vòng generator↔critic. (3) critic đạt → yield_output (dừng), chưa → send_message (lặp). (4) demo 2: group chat + termination 'PASS'.
+- **Thi nhớ:** WorkflowBuilder = graph tuỳ biến (fan-out/loop/điều kiện) khi Sequential/Concurrent/Handoff/GroupChat không vừa; `max_iterations` chặn lặp vô hạn.
+
 ---
 
 ## 06 · rag_and_foundry_iq_grounding

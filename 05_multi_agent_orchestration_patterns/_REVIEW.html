@@ -12,52 +12,50 @@
 <div class="card"><ul>
 <li><b>Nền chung:</b> Microsoft Agent Framework (code-first, async, Python ≥ 3.10/3.11). Hợp nhất <b>AutoGen (orchestration) + Semantic Kernel (workflow)</b>. Mỗi pattern = tạo vài <code>Agent(client=FoundryChatClient(...))</code> rồi ghép.</li>
 <li><b>Sequential:</b> output bước này là input bước sau (Researcher → Writer → Reviewer). Tuyến tính, dễ suy luận.</li>
-<li><b>Concurrent (fan-out/fan-in):</b> chạy N agent SONG SONG (<code>asyncio.gather</code>) rồi 1 aggregator tổng hợp. Giảm latency, cần bước fan-in.</li>
+<li><b>Concurrent (fan-out/fan-in):</b> chạy N agent SONG SONG (<code>ConcurrentBuilder</code>) rồi aggregator tổng hợp — nhớ <b>gắn nhãn nguồn</b> (<code>executor_id</code>) khi fan-in. Giảm latency.</li>
 <li><b>Handoff:</b> router/triage đọc intent rồi <b>trao quyền</b> cho agent chuyên gia phù hợp — định tuyến động.</li>
 <li><b>Supervisor (agent-as-tool):</b> supervisor coi agent con như <b>tool</b> (<code>.as_tool()</code>), tự quyết gọi cái nào, kiểm soát <b>tập trung</b>.</li>
-<li><b>Group chat / Reflection:</b> vòng lặp Generator ↔ Critic, lặp tới khi "ĐẠT" hoặc hết vòng — nâng chất lượng, <b>bắt buộc có điều kiện dừng</b>.</li>
+<li><b>Group chat / Reflection:</b> <code>GroupChatBuilder</code> điều phối lượt nói Generator ↔ Critic, có <code>max_rounds</code>; điều kiện dừng dùng <b>marker chặt</b> (vd <code>PASS</code>), tránh so khớp lỏng kiểu <code>"ĐẠT" in ...</code> (khớp nhầm "CHƯA ĐẠT").</li>
 <li><b>Dựng sẵn:</b> cài <code>agent-framework-orchestrations</code> để dùng <code>SequentialBuilder</code> / <code>ConcurrentBuilder</code> / <code>HandoffBuilder</code> / <code>MagenticBuilder</code> / <code>GroupChatBuilder</code> (<code>.build()</code> → <code>Workflow</code>, <code>await wf.run(task)</code> → <code>.get_outputs()</code>); <b>WorkflowBuilder</b> cho graph <code>Executor</code> + edges tuỳ biến. Các lab 05 giờ dùng builder thật, bản ghép tay giữ trong comment để đối chiếu.</li>
 </ul></div>
 
 <h2>2. Cú pháp cần nhớ</h2>
-<pre><code># Mẫu tạo agent (dùng cho mọi pattern):
+<pre><code># Mẫu chung: credential + chat_client tạo MỘT LẦN, dùng chung cho mọi agent
 from agent_framework import Agent
 from agent_framework.foundry import FoundryChatClient
-def make_agent(name, instructions):
-    return Agent(client=FoundryChatClient(project_endpoint=ep, model=MODEL,
-                 credential=DefaultAzureCredential()), name=name, instructions=instructions)
+from agent_framework.orchestrations import (
+    SequentialBuilder, ConcurrentBuilder, HandoffBuilder, GroupChatBuilder)   # gói agent-framework-orchestrations
+with DefaultAzureCredential() as cred:
+    client = FoundryChatClient(project_endpoint=ep, model=MODEL, credential=cred)
+    researcher = Agent(client=client, name="researcher", instructions="...")   # tái dùng client
 
-# (1) Sequential — nối tay: output trước -> input sau
-research = await researcher.run(f"Nêu ý về: {topic}")
-draft    = await writer.run(f"Viết đoạn từ:\n{research.text}")
-review   = await reviewer.run(f"Góp ý:\n{draft.text}")
+# (1) Sequential — builder tự nối output trước -> input sau
+wf = SequentialBuilder(participants=[researcher, writer, reviewer]).build()
+result = await wf.run(topic); print(result.get_outputs())
 
-# (2) Concurrent — fan-out song song rồi fan-in tổng hợp
-results = await asyncio.gather(*(a.run(prompt) for a in agents.values()))
-summary = await aggregator.run("Tổng hợp:\n" + "\n".join(r.text for r in results))
+# (2) Concurrent — fan-out song song + fan-in GẮN NHÃN nguồn
+def agg(responses):   # responses: list[AgentExecutorResponse]
+    return "\n".join(f"== {r.executor_id} ==\n{r.agent_response.text}" for r in responses)
+wf = ConcurrentBuilder(participants=[marketing, technical, risk]).with_aggregator(agg).build()
 
-# (3) Handoff — router phân loại intent rồi trao quyền
-label = (await router.run(request)).text.strip().lower()
-reply = await specialists[label].run(request)
+# (3) Handoff — handoff THẬT (framework tự sinh handoff tool cho start agent)
+wf = (HandoffBuilder(participants=[triage, tech, billing])
+      .with_start_agent(triage).add_handoff(triage, [tech, billing]).build())
 
-# (4) Supervisor as tool — agent con thành tool của supervisor
-#   agent-framework: child.as_tool()  -> supervisor tự quyết gọi tool nào
-translation = (await translate_agent.run(text)).text
-result = await supervisor.run(f"Tổng hợp:\n- Dịch: {translation} ...")
+# (4) Supervisor — agent con thành TOOL của supervisor (.as_tool)
+translate_tool = translator.as_tool(name="translate", description="...", arg_name="text")
+supervisor = Agent(client=client, name="supervisor", tools=[translate_tool], instructions="...")
 
-# (5) Reflection loop — Generator &lt;-&gt; Critic, có điều kiện dừng
-for _ in range(1, 4):                      # giới hạn vòng -> tránh lặp vô hạn
-    feedback = (await critic.run(f"Chấm: {draft}")).text
-    if "ĐẠT" in feedback.upper(): break
-    draft = (await generator.run(f"Sửa theo: {feedback}")).text
+# (5) Group chat / reflection — bounded rounds; dừng bằng MARKER chặt, KHÔNG 'ĐẠT' in ...
+wf = GroupChatBuilder(participants=[generator, critic]).with_max_rounds(6).build()
 
-# (phức tạp) WorkflowBuilder: Executor + @handler + ctx.send_message() -> graph có fan-out/loop</code></pre>
+# (phức tạp) WorkflowBuilder: Executor + @handler + ctx.send_message() -> graph fan-out/loop/điều kiện (xem lab 06)</code></pre>
 
 <h2>3. Dễ nhầm với service khác</h2>
 <table>
 <tr><th>Cặp dễ nhầm</th><th>Phân biệt</th></tr>
 <tr><td>Handoff vs Supervisor (agent-as-tool)</td><td>Handoff = <b>trao TOÀN BỘ quyền</b> cho agent kế tiếp, agent đích trực tiếp trả lời user (điều khiển <b>phi tập trung</b>). Supervisor = agent con chỉ là <b>tool</b>, supervisor giữ quyền và <b>tổng hợp</b> (điều khiển <b>tập trung</b>). Đề "một agent điều phối và gộp kết quả" → supervisor; "chuyển hẳn cho chuyên gia theo intent" → handoff.</td></tr>
-<tr><td>Sequential vs Concurrent</td><td>Sequential = output trước là input sau, có <b>phụ thuộc</b>, chậm hơn. Concurrent = các nhánh <b>độc lập</b>, chạy <code>asyncio.gather</code>, nhanh hơn, cần aggregator fan-in. Đề "giảm latency, nhiều góc nhìn độc lập" → concurrent; "quy trình có thứ tự" → sequential.</td></tr>
+<tr><td>Sequential vs Concurrent</td><td>Sequential = output trước là input sau, có <b>phụ thuộc</b>, chậm hơn. Concurrent = các nhánh <b>độc lập</b> (<code>ConcurrentBuilder</code>), nhanh hơn, cần aggregator fan-in (có nhãn nguồn). Đề "giảm latency, nhiều góc nhìn độc lập" → concurrent; "quy trình có thứ tự" → sequential.</td></tr>
 <tr><td>WorkflowBuilder vs ChatAgent/Agent</td><td><code>Agent</code> = một agent gọi <code>.run()</code>. <b>WorkflowBuilder</b> = graph các <code>Executor</code> nối bằng edge (<code>@handler</code>, <code>ctx.send_message()</code>) cho luồng có fan-out/loop/điều kiện. Đề "điều phối phức tạp, nhiều nhánh/vòng, graph" → WorkflowBuilder.</td></tr>
 <tr><td>Reflection vs single call</td><td>Reflection = vòng lặp Generator/Critic để tự cải thiện, <b>tốn token hơn</b> nhưng chất lượng cao. Đề "chất lượng cao, tự rà soát" → reflection; nhớ phải có <b>điều kiện dừng</b> (tiêu chí hoặc max vòng).</td></tr>
 <tr><td>Agent Framework orchestration vs Foundry Connected Agents</td><td>Agent Framework = điều phối <b>code-first</b> (trong code bạn). Foundry cũng có cơ chế agent gọi agent (A2A/connected) ở phía service (chương 03). Đề "điều phối bằng code, portable" → Agent Framework.</td></tr>
@@ -66,12 +64,12 @@ for _ in range(1, 4):                      # giới hạn vòng -> tránh lặp 
 <h2>4. Exam tips &amp; bẫy</h2>
 <div class="card tip"><ul>
 <li>Đề nói <b>"quy trình nhiều bước có thứ tự, bước sau cần kết quả bước trước"</b> → <b>Sequential</b>.</li>
-<li>Đề nói <b>"nhiều phân tích độc lập, giảm thời gian"</b> → <b>Concurrent fan-out/fan-in</b> (<code>asyncio.gather</code> + aggregator).</li>
+<li>Đề nói <b>"nhiều phân tích độc lập, giảm thời gian"</b> → <b>Concurrent fan-out/fan-in</b> (<code>ConcurrentBuilder</code> + aggregator có nhãn).</li>
 <li>Đề nói <b>"định tuyến theo intent/loại yêu cầu"</b> → <b>Handoff</b> (router → specialist).</li>
 <li>Đề nói <b>"một điều phối viên kiểm soát, gọi trợ lý con như công cụ"</b> → <b>Supervisor agent-as-tool</b> (<code>.as_tool()</code>).</li>
 <li>Đề nói <b>"tự phản biện, cải thiện tới khi đạt"</b> → <b>Reflection/Group chat</b>; luôn có điều kiện dừng kẻo lặp vô hạn.</li>
 <li>Đề nói <b>"graph nhiều nhánh/vòng, điều kiện phức tạp"</b> → <b>WorkflowBuilder</b> (Executor + edges), không phải chuỗi <code>await</code> phẳng.</li>
-<li>Agent Framework là <b>async</b> — nhớ <code>await</code>/<code>asyncio.run</code>; mỗi agent nên có client riêng khi chạy song song.</li>
+<li>Agent Framework là <b>async</b> — nhớ <code>await</code>/<code>asyncio.run</code>; <b>tái dùng 1 credential + 1 chat_client</b> cho mọi agent (tạo lại mỗi agent là lãng phí), dọn qua <code>with</code>.</li>
 <li>Semantic Kernel + AutoGen đã <b>hợp nhất</b> → đề nhắc riêng SK/AutoGen là ngữ cảnh cũ.</li>
 </ul></div>
 

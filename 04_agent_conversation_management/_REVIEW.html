@@ -10,12 +10,12 @@
 
 <h2>1. Tóm tắt</h2>
 <div class="card"><ul>
-<li><b>5 cách giữ ngữ cảnh</b>, từ nhẹ client đến bền server: (1) tự quản <code>messages[]</code> stateless; (2) <b>Conversations API</b> server-managed; (3) <b>previous_response_id</b> (Responses chaining); (4) <b>Agent Framework thread</b> (serialize/resume); (5) <b>memory provider</b> + context compaction.</li>
+<li><b>5 cách giữ ngữ cảnh</b>, từ nhẹ client đến bền server: (1) tự quản <code>messages[]</code> stateless; (2) <b>Conversations API</b> server-managed; (3) <b>previous_response_id</b> (Responses chaining); (4) <b>Agent Framework session</b> (AgentSession + history provider); (5) <b>memory provider</b> + context compaction.</li>
 <li><b>Stateless (04/01):</b> client giữ TOÀN BỘ lịch sử, phải <b>gửi lại mỗi lượt</b> → tốn token khi dài; cần tự <code>trim</code>/nén.</li>
 <li><b>Conversations API (04/02):</b> tạo <code>conversations.create()</code>, add message, rồi <code>responses.create(conversation=conv.id)</code> — server <b>tự nhớ</b>, khỏi gửi lại lịch sử. (Thay cho Threads/Runs của Assistants cũ.)</li>
 <li><b>previous_response_id (04/03):</b> nối lượt chỉ bằng id của response trước — <b>state nhẹ server-side</b>, không cần tạo conversation object. Bỏ tham số này → model không nhớ.</li>
-<li><b>Agent Framework thread (04/04):</b> state tách khỏi agent; <code>serialize</code> ra JSON/file để <b>resume</b> phiên sau. (Thay <code>ChatHistory</code> của Semantic Kernel.)</li>
-<li><b>Memory (04/05):</b> fact bền theo user (vd <code>FoundryMemoryProvider</code>); <b>context compaction</b> = tóm tắt lượt cũ để giảm token mà giữ ý chính.</li>
+<li><b>Agent Framework session (04/04):</b> <code>AgentSession</code> (định danh phiên) + <code>FileHistoryProvider</code> (context provider TỰ lưu/nạp lịch sử ra file theo session_id) — không serialize/nhồi prompt tay. (Thay <code>ChatHistory</code> của Semantic Kernel.)</li>
+<li><b>Memory (04/05):</b> <code>FileMemoryProvider</code> tự trích/recall fact theo user (Foundry-managed: <code>FoundryMemoryProvider</code>); <b>context compaction</b> dựng sẵn <code>ContextWindowCompactionStrategy</code> gắn vào Agent (tự nén khi dài).</li>
 </ul></div>
 
 <h2>2. Cú pháp cần nhớ</h2>
@@ -38,14 +38,16 @@ r1 = client.responses.create(model=dep, input="...")
 r2 = client.responses.create(model=dep, input="...",
                              previous_response_id=r1.id)  # bỏ -> KHÔNG nhớ
 
-# (4) Agent Framework — serialize thread/state để resume:
-r = await agent.run(q)
-json.dump(history, f)          # lưu ra file
-# phiên sau: load lại history -> chạy tiếp
+# (4) Agent Framework — AgentSession + FileHistoryProvider (framework tự lưu/nạp):
+agent = Agent(client=cc, instructions="...", context_providers=[FileHistoryProvider(dir)])
+await agent.run(q, session=AgentSession(session_id="user-1"))   # tự lưu theo session_id
+# phiên sau (cùng session_id): lịch sử TỰ nạp lại, khỏi serialize/nhồi prompt
 
-# (5) Memory + compaction:
-#   - ghi fact user (bền qua phiên) rồi nạp vào system message
-#   - compact: nhờ model "tóm tắt hội thoại sau trong 1-2 câu" -> thay lịch sử dài</code></pre>
+# (5) Memory + compaction (dựng sẵn):
+memory = FileMemoryProvider(store=FileSystemAgentFileStore(dir))      # tự nhớ/recall fact user
+agent = Agent(client=cc, context_providers=[memory],
+              compaction_strategy=ContextWindowCompactionStrategy(    # tự nén khi hội thoại dài
+                  max_context_window_tokens=8000, max_output_tokens=1000))</code></pre>
 
 <h2>3. Dễ nhầm với service khác</h2>
 <table>
@@ -54,7 +56,7 @@ json.dump(history, f)          # lưu ra file
 <tr><td>previous_response_id vs manual history (stateless)</td><td>Chaining = server giữ, chỉ gửi <b>input mới</b>. Manual = client gửi <b>cả messages[]</b> mỗi lượt (tốn token, nhưng toàn quyền kiểm soát/cắt). Đề "giảm token, khỏi gửi lại lịch sử" → previous_response_id.</td></tr>
 <tr><td>Conversations (Responses) vs Threads/Runs (Assistants cũ)</td><td>Assistants API dùng Threads + Runs (queued→in_progress→completed). Chuẩn mới hợp nhất về <b>Conversations + Responses</b>. Đề nhắc <code>runs.create</code>/poll run = ngữ cảnh API cũ.</td></tr>
 <tr><td>Memory vs context compaction</td><td>Memory = <b>kiến thức bền</b> theo user, chọn lọc, dùng lại nhiều phiên (fact/preference). Compaction = <b>nén lịch sử hội thoại hiện tại</b> thành tóm tắt để vừa context window. Khác mục đích: nhớ lâu vs gói gọn.</td></tr>
-<tr><td>Agent Framework thread vs Foundry Conversations</td><td>Thread Agent Framework = state <b>code-first</b>, serialize/resume phía bạn. Conversations = state do <b>Foundry server</b> giữ. Đề "portable, lưu file, resume offline" → Agent Framework thread.</td></tr>
+<tr><td>Agent Framework session vs Foundry Conversations</td><td>Session Agent Framework = state <b>code-first</b>, provider lưu local (<code>FileHistoryProvider</code>) tự quản phía bạn. Conversations = state do <b>Foundry server</b> giữ. Đề "portable, lưu file, resume offline" → Agent Framework session.</td></tr>
 </table>
 
 <h2>4. Exam tips &amp; bẫy</h2>
