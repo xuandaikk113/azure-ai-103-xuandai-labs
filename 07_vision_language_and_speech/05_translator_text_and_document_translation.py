@@ -48,6 +48,15 @@ def main() -> None:
         credential=AzureKeyCredential(cfg["TRANSLATOR_API_KEY"]),
         region=cfg["TRANSLATOR_REGION"],       # region bắt buộc với key đa vùng
     )
+    # ── Alternative KEYLESS (Entra ID, khuyến nghị production) — thay cho AzureKeyCredential ──
+    #   from azure.identity import DefaultAzureCredential
+    #   client = TextTranslationClient(
+    #       endpoint=cfg["TRANSLATOR_ENDPOINT"],
+    #       credential=DefaultAzureCredential(),
+    #       region=cfg["TRANSLATOR_REGION"],   # vẫn cần region khi dùng token Entra ID
+    #   )
+    #   (keyless chạy được khi principal có đúng RBAC data-plane role cho service này —
+    #    vd Cognitive Services User trên resource Translator; xem lab 00/04)
 
     # Dịch 1 câu sang NHIỀU ngôn ngữ đích cùng lúc
     result = client.translate(body=["Xin chào, hôm nay bạn thế nào?"], to_language=["en", "ja"])

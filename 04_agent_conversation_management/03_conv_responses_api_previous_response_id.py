@@ -50,22 +50,31 @@ def main() -> None:
     #   from openai import AzureOpenAI
     #   client = AzureOpenAI(azure_endpoint=cfg["AZURE_OPENAI_ENDPOINT"],
     #                        api_key=cfg["AZURE_OPENAI_API_KEY"], api_version="2025-04-01-preview")
-    dep = cfg["AZURE_OPENAI_CHAT_DEPLOYMENT"]
+    # Alternative KEYLESS (Entra ID, khuyến nghị production) — thay cho api_key:
+    #   from azure.identity import DefaultAzureCredential, get_bearer_token_provider
+    #   token_provider = get_bearer_token_provider(
+    #       DefaultAzureCredential(), "https://ai.azure.com/.default")   # scope cho /openai/v1
+    #   client = OpenAI(base_url=..., api_key=token_provider)
+    deployment = cfg["AZURE_OPENAI_CHAT_DEPLOYMENT"]
 
     # Lượt 1: lấy response id
-    r1 = client.responses.create(model=dep, input="Thủ đô nước Pháp là gì?")
-    print("Lượt 1:", r1.output_text)
+    first_response = client.responses.create(model=deployment, input="Thủ đô nước Pháp là gì?")
+    print("Lượt 1:", first_response.output_text)
 
     # Lượt 2: KHÔNG gửi lại lịch sử, chỉ nối qua previous_response_id
     # -> server tự dùng ngữ cảnh của lượt trước (state nhẹ phía server).
-    r2 = client.responses.create(
-        model=dep,
+    second_response = client.responses.create(
+        model=deployment,
         input="Dân số ở đó khoảng bao nhiêu?",
-        previous_response_id=r1.id,
+        previous_response_id=first_response.id,   # optional — bỏ đi thì model KHÔNG nhớ lượt trước
     )
-    print("Lượt 2:", r2.output_text)
+    print("Lượt 2:", second_response.output_text)
 
     print("\nƯu điểm: không phải gửi lại toàn bộ lịch sử như stateless (04/01).")
+
+    # ── Alternative · chat.completions KHÔNG có previous_response_id ──
+    # Muốn nhớ ngữ cảnh với chat.completions thì PHẢI tự gửi lại toàn bộ 'messages' (xem 04/01),
+    # hoặc để server giữ state bằng Conversations API (xem 04/02).
 
 
 if __name__ == "__main__":

@@ -67,6 +67,15 @@ def main() -> None:
         index_name=cfg["AZURE_SEARCH_INDEX"],
         credential=AzureKeyCredential(cfg["AZURE_SEARCH_API_KEY"]),
     )
+    # ── Alternative KEYLESS (Entra ID, khuyến nghị production) — thay cho AzureKeyCredential ──
+    #   from azure.identity import DefaultAzureCredential
+    #   search_client = SearchClient(
+    #       endpoint=cfg["AZURE_SEARCH_ENDPOINT"],
+    #       index_name=cfg["AZURE_SEARCH_INDEX"],
+    #       credential=DefaultAzureCredential(),
+    #   )
+    #   (keyless chạy được khi principal có đúng RBAC data-plane role cho Search —
+    #    vd Search Index Data Reader (đọc) / Search Index Data Contributor (ghi); xem lab 00/04)
     vector_query = VectorizedQuery(
         vector=embedding, k_nearest_neighbors=3, fields="contentVector",
     )

@@ -42,6 +42,11 @@ def require_env(*names: str) -> dict:
 def main() -> None:
     cfg = require_env("LANGUAGE_ENDPOINT", "LANGUAGE_API_KEY")
     client = TextAnalyticsClient(cfg["LANGUAGE_ENDPOINT"], AzureKeyCredential(cfg["LANGUAGE_API_KEY"]))
+    # ── Alternative KEYLESS (Entra ID, khuyến nghị production) — thay cho AzureKeyCredential ──
+    #   from azure.identity import DefaultAzureCredential
+    #   client = TextAnalyticsClient(cfg["LANGUAGE_ENDPOINT"], DefaultAzureCredential())
+    #   (keyless chạy được khi principal có đúng RBAC data-plane role cho service này —
+    #    vd Cognitive Services User trên resource Language; xem lab 00/04)
 
     docs = ["Ông Nam gọi số 0901234567, email nam@example.com, dịch vụ rất tuyệt vời."]
 
@@ -58,7 +63,7 @@ def main() -> None:
 
     # 3) Sentiment + opinion mining (cảm xúc theo câu + khía cạnh)
     print("\n== Sentiment ==")
-    for doc in client.analyze_sentiment(docs, show_opinion_mining=True):
+    for doc in client.analyze_sentiment(docs, show_opinion_mining=True):   # show_opinion_mining: optional (mặc định False)
         print(f"  Tổng thể: {doc.sentiment}")
         for sentence in doc.sentences:
             print(f"    câu: {sentence.sentiment} ({sentence.text})")

@@ -45,6 +45,11 @@ def main() -> None:
     )
 
     client = OpenAI(base_url=cfg["FOUNDRY_MODELS_ENDPOINT"], api_key=cfg["FOUNDRY_MODELS_API_KEY"])
+    # ── Alternative KEYLESS (Entra ID, khuyến nghị production) — thay cho api_key ──
+    #   from azure.identity import DefaultAzureCredential, get_bearer_token_provider
+    #   token_provider = get_bearer_token_provider(
+    #       DefaultAzureCredential(), "https://ai.azure.com/.default")   # scope cho Foundry /v1
+    #   client = OpenAI(base_url=cfg["FOUNDRY_MODELS_ENDPOINT"], api_key=token_provider)
 
     # 1) Chat với model trong catalog Foundry
     chat = client.chat.completions.create(
@@ -52,6 +57,11 @@ def main() -> None:
         messages=[{"role": "user", "content": "Nói 'xin chào' bằng 3 ngôn ngữ."}],
     )
     print("Chat:", chat.choices[0].message.content)
+    # ── Alternative · cùng tác vụ bằng RESPONSES API ──
+    #   r = client.responses.create(model=cfg["FOUNDRY_NON_OPENAI_MODEL"],
+    #                               input="Nói 'xin chào' bằng 3 ngôn ngữ.")
+    #   print(r.output_text)
+    # (Lưu ý: vài model non-OpenAI trong catalog chỉ hỗ trợ chat.completions, chưa có responses.)
 
     # 2) Embeddings: biến text thành vector (dùng cho RAG / tìm kiếm ngữ nghĩa)
     emb = client.embeddings.create(

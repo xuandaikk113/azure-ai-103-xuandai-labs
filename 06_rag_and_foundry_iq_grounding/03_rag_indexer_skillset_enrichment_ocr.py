@@ -55,6 +55,13 @@ def main() -> None:
     endpoint = cfg["AZURE_SEARCH_ENDPOINT"]
     credential = AzureKeyCredential(cfg["AZURE_SEARCH_API_KEY"])
     index_name = cfg["AZURE_SEARCH_INDEX"]
+    # ── Alternative KEYLESS (Entra ID, khuyến nghị production) — thay cho AzureKeyCredential ──
+    #   from azure.identity import DefaultAzureCredential
+    #   credential = DefaultAzureCredential()
+    #   index_client = SearchIndexClient(endpoint=endpoint, credential=credential)
+    #   indexer_client = SearchIndexerClient(endpoint=endpoint, credential=credential)
+    #   (keyless chạy được khi principal có đúng RBAC data-plane role cho Search —
+    #    tạo index/indexer/skillset cần Search Index Data Contributor / Search Service Contributor; xem lab 00/04)
 
     # 1) INDEX đích: nơi chứa dữ liệu sau khi enrich
     index_client = SearchIndexClient(endpoint, credential)

@@ -49,6 +49,11 @@ def main() -> None:
         api_key=cfg["AZURE_OPENAI_API_KEY"],
         api_version=cfg["AZURE_OPENAI_API_VERSION"],
     )
+    # ── Alternative KEYLESS (Entra ID, khuyến nghị production) — thay cho api_key ──
+    #   from azure.identity import DefaultAzureCredential, get_bearer_token_provider
+    #   token_provider = get_bearer_token_provider(
+    #       DefaultAzureCredential(), "https://cognitiveservices.azure.com/.default")  # scope AzureOpenAI classic
+    #   client = AzureOpenAI(azure_endpoint=..., api_version=..., azure_ad_token_provider=token_provider)
 
     # messages: danh sách lượt hội thoại. Vai trò: system (chỉ dẫn) / user / assistant.
     resp = client.chat.completions.create(
@@ -57,11 +62,19 @@ def main() -> None:
             {"role": "system", "content": "Bạn là trợ lý tiếng Việt, trả lời ngắn gọn."},
             {"role": "user", "content": "Giải thích RAG trong 1 câu."},
         ],
-        temperature=0.7,     # độ sáng tạo (0 = chắc chắn, 1 = đa dạng)
+        temperature=0.7,     # optional — độ sáng tạo (0 = chắc chắn, 1 = đa dạng); mặc định 1.0
     )
 
     print("Trả lời:", resp.choices[0].message.content)
     print(f"Token: {resp.usage.total_tokens}")
+
+    # ── Alternative · cùng tác vụ bằng RESPONSES API (chuẩn mới, nền agentic, xem lab 02/02) ──
+    #   r = client.responses.create(
+    #       model=cfg["AZURE_OPENAI_CHAT_DEPLOYMENT"],
+    #       input="Giải thích RAG trong 1 câu.",                          # thay cho 'messages'
+    #       instructions="Bạn là trợ lý tiếng Việt, trả lời ngắn gọn.",   # ~ vai trò 'system'
+    #   )
+    #   print(r.output_text)
 
 
 if __name__ == "__main__":

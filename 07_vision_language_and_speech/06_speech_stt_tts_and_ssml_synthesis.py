@@ -41,6 +41,12 @@ def require_env(*names: str) -> dict:
 def main() -> None:
     cfg = require_env("SPEECH_KEY", "SPEECH_REGION")
     speech_config = speechsdk.SpeechConfig(subscription=cfg["SPEECH_KEY"], region=cfg["SPEECH_REGION"])
+    # ── Alternative KEYLESS (Entra ID) — thay cho subscription key ──
+    #   from azure.identity import DefaultAzureCredential, get_bearer_token_provider
+    #   token_provider = get_bearer_token_provider(DefaultAzureCredential(), "https://cognitiveservices.azure.com/.default")
+    #   speech_config = speechsdk.SpeechConfig(auth_token="aad#{resourceId}#" + token_provider(), region=cfg["SPEECH_REGION"])
+    #   (Speech yêu cầu định dạng auth_token đặc thù "aad#{resourceId}#{aadToken}" — {resourceId} là
+    #    resource ID đầy đủ của Speech resource; principal cần role Cognitive Services User; xem lab 00/04)
     speech_config.speech_synthesis_voice_name = "vi-VN-HoaiMyNeural"   # giọng neural tiếng Việt
 
     # 1) TTS: text -> giọng nói (phát ra loa mặc định)

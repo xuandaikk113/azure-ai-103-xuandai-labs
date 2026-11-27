@@ -57,6 +57,11 @@ def main() -> None:
     #   from openai import AzureOpenAI
     #   client = AzureOpenAI(azure_endpoint=cfg["AZURE_OPENAI_ENDPOINT"],
     #                        api_key=cfg["AZURE_OPENAI_API_KEY"], api_version="2025-04-01-preview")
+    # Alternative KEYLESS (Entra ID, khuyến nghị production) — thay cho api_key:
+    #   from azure.identity import DefaultAzureCredential, get_bearer_token_provider
+    #   token_provider = get_bearer_token_provider(
+    #       DefaultAzureCredential(), "https://ai.azure.com/.default")   # scope cho /openai/v1
+    #   client = OpenAI(base_url=..., api_key=token_provider)
     deployment = cfg["AZURE_OPENAI_CHAT_DEPLOYMENT"]
 
     # CLIENT tự giữ toàn bộ lịch sử trong biến messages (stateless phía server)
@@ -70,6 +75,11 @@ def main() -> None:
         print(f"User: {question}\nBot : {reply}\n")
 
     print("Lưu ý: stateless -> client phải GỬI LẠI toàn bộ lịch sử mỗi lượt (tốn token khi dài).")
+
+    # ── Alternative · cùng tác vụ bằng RESPONSES API ──
+    #   r = client.responses.create(model=deployment, input=messages)   # messages dạng list item
+    #   reply = r.output_text
+    # Hoặc để SERVER tự giữ lịch sử (khỏi gửi lại): previous_response_id (04/03) hoặc Conversations (04/02).
 
 
 if __name__ == "__main__":

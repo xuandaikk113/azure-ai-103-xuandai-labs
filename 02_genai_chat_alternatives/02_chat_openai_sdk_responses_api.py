@@ -51,6 +51,11 @@ def main() -> None:
     #   from openai import AzureOpenAI
     #   client = AzureOpenAI(azure_endpoint=cfg["AZURE_OPENAI_ENDPOINT"],
     #                        api_key=cfg["AZURE_OPENAI_API_KEY"], api_version="2025-04-01-preview")
+    # Alternative KEYLESS (Entra ID, khuyến nghị production) — thay cho api_key:
+    #   from azure.identity import DefaultAzureCredential, get_bearer_token_provider
+    #   token_provider = get_bearer_token_provider(
+    #       DefaultAzureCredential(), "https://ai.azure.com/.default")   # scope cho /openai/v1
+    #   client = OpenAI(base_url=..., api_key=token_provider)
 
     # responses.create: thay cho chat.completions. Tham số 'input' nhận chuỗi hoặc danh sách item.
     resp = client.responses.create(
@@ -63,6 +68,15 @@ def main() -> None:
     print("Trả lời:", resp.output_text)
     # resp.id dùng để nối lượt sau qua previous_response_id (xem lab 04/03)
     print("response id:", resp.id)
+
+    # ── Alternative · cùng tác vụ bằng CHAT COMPLETIONS (cổ điển, xem lab 02/01) ──
+    #   r = client.chat.completions.create(
+    #       model=cfg["AZURE_OPENAI_CHAT_DEPLOYMENT"],
+    #       messages=[{"role": "system", "content": "Bạn là trợ lý tiếng Việt, trả lời ngắn gọn."},
+    #                 {"role": "user", "content": "Responses API khác Chat Completions ở điểm nào?"}],
+    #   )
+    #   print(r.choices[0].message.content)
+    # Khác chính: responses dùng 'input'/'instructions' + output_text + previous_response_id (state nhẹ).
 
 
 if __name__ == "__main__":

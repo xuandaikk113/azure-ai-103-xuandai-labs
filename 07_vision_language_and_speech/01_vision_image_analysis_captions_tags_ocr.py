@@ -48,6 +48,11 @@ def main() -> None:
         sys.exit(f"[THIẾU DỮ LIỆU] Đặt ảnh tại: {image_path}")
 
     client = ImageAnalysisClient(cfg["VISION_ENDPOINT"], AzureKeyCredential(cfg["VISION_API_KEY"]))
+    # ── Alternative KEYLESS (Entra ID, khuyến nghị production) — thay cho AzureKeyCredential ──
+    #   from azure.identity import DefaultAzureCredential
+    #   client = ImageAnalysisClient(cfg["VISION_ENDPOINT"], DefaultAzureCredential())
+    #   (keyless chạy được khi principal có đúng RBAC data-plane role cho service này —
+    #    vd Cognitive Services User trên resource Vision; xem lab 00/04)
     with open(image_path, "rb") as f:
         image_data = f.read()
 

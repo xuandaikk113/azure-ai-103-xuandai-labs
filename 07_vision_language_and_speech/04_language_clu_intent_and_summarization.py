@@ -48,6 +48,13 @@ def main() -> None:
         "CLU_PROJECT_NAME", "CLU_DEPLOYMENT_NAME",
     )
     credential = AzureKeyCredential(cfg["LANGUAGE_API_KEY"])
+    # ── Alternative KEYLESS (Entra ID, khuyến nghị production) — thay cho AzureKeyCredential ──
+    #   from azure.identity import DefaultAzureCredential
+    #   credential = DefaultAzureCredential()
+    #   clu = ConversationAnalysisClient(cfg["LANGUAGE_ENDPOINT"], credential)
+    #   ta = TextAnalyticsClient(cfg["LANGUAGE_ENDPOINT"], credential)
+    #   (keyless chạy được khi principal có đúng RBAC data-plane role cho service này —
+    #    vd Cognitive Services User trên resource Language; xem lab 00/04)
 
     # 1) CLU: phân tích intent + entity của 1 câu người dùng
     clu = ConversationAnalysisClient(cfg["LANGUAGE_ENDPOINT"], credential)

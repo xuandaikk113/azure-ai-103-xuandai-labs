@@ -61,6 +61,11 @@ def main() -> None:
     client = DocumentIntelligenceClient(
         cfg["DOC_INTELLIGENCE_ENDPOINT"], AzureKeyCredential(cfg["DOC_INTELLIGENCE_API_KEY"]),
     )
+    # ── Alternative KEYLESS (Entra ID, khuyến nghị production) — thay cho AzureKeyCredential ──
+    #   from azure.identity import DefaultAzureCredential
+    #   client = DocumentIntelligenceClient(cfg["DOC_INTELLIGENCE_ENDPOINT"], DefaultAzureCredential())
+    #   (keyless chạy được khi principal có đúng RBAC data-plane role cho service này —
+    #    vd Cognitive Services User trên resource Document Intelligence; xem lab 00/04)
 
     # 1) Hoá đơn
     invoice_path = os.path.join("assets", "sample_invoice.pdf")

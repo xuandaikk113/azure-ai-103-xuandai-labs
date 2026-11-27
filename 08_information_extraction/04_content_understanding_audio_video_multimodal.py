@@ -52,6 +52,14 @@ def main() -> None:
         endpoint=cfg["CONTENT_UNDERSTANDING_ENDPOINT"],
         credential=AzureKeyCredential(cfg["CONTENT_UNDERSTANDING_API_KEY"]),
     )
+    # ── Alternative KEYLESS (Entra ID, khuyến nghị production) — thay cho AzureKeyCredential ──
+    #   from azure.identity import DefaultAzureCredential
+    #   client = ContentUnderstandingClient(
+    #       endpoint=cfg["CONTENT_UNDERSTANDING_ENDPOINT"],
+    #       credential=DefaultAzureCredential(),
+    #   )
+    #   (keyless chạy được khi principal có đúng RBAC data-plane role cho service này —
+    #    vd Cognitive Services User trên resource Content Understanding; xem lab 00/04)
 
     # AUDIO: phiên âm + phân đoạn (cùng một API begin_analyze, đổi analyzer_id)
     audio_poller = client.begin_analyze(

@@ -37,9 +37,16 @@ def require_env(*names: str) -> dict:
 
 
 def ask(client, deployment, messages, **params):
-    """Gọi model với bộ messages + tham số tuỳ biến, trả text."""
+    """Gọi model với bộ messages + tham số tuỳ biến (temperature/top_p/max_tokens...), trả text.
+
+    params = các tham số OPTIONAL của chat.completions (đều có default nếu bỏ trống).
+    """
     r = client.chat.completions.create(model=deployment, messages=messages, **params)
     return r.choices[0].message.content
+    # ── Alternative · cùng tác vụ bằng RESPONSES API ──
+    #   r = client.responses.create(model=deployment, input=messages, **params)
+    #   return r.output_text
+    # (responses dùng 'input' thay 'messages'; cùng nhận temperature/top_p/max_output_tokens.)
 
 
 def main() -> None:
@@ -56,6 +63,11 @@ def main() -> None:
     #   from openai import AzureOpenAI
     #   client = AzureOpenAI(azure_endpoint=cfg["AZURE_OPENAI_ENDPOINT"],
     #                        api_key=cfg["AZURE_OPENAI_API_KEY"], api_version="2025-04-01-preview")
+    # Alternative KEYLESS (Entra ID, khuyến nghị production) — thay cho api_key:
+    #   from azure.identity import DefaultAzureCredential, get_bearer_token_provider
+    #   token_provider = get_bearer_token_provider(
+    #       DefaultAzureCredential(), "https://ai.azure.com/.default")   # scope cho /openai/v1
+    #   client = OpenAI(base_url=..., api_key=token_provider)
     deployment = cfg["AZURE_OPENAI_CHAT_DEPLOYMENT"]
     question = "Phí vận chuyển là bao nhiêu?"
 

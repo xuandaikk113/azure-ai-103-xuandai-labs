@@ -51,6 +51,11 @@ def main() -> None:
     #   from openai import AzureOpenAI
     #   client = AzureOpenAI(azure_endpoint=cfg["AZURE_OPENAI_ENDPOINT"],
     #                        api_key=cfg["AZURE_OPENAI_API_KEY"], api_version="2025-04-01-preview")
+    # Alternative KEYLESS (Entra ID, khuyến nghị production) — thay cho api_key:
+    #   from azure.identity import DefaultAzureCredential, get_bearer_token_provider
+    #   token_provider = get_bearer_token_provider(
+    #       DefaultAzureCredential(), "https://ai.azure.com/.default")   # scope cho /openai/v1
+    #   client = OpenAI(base_url=..., api_key=token_provider)
     deployment = cfg["AZURE_OPENAI_CHAT_DEPLOYMENT"]
 
     # ── 1) STREAMING: nhận từng mảnh (delta) theo thời gian thực ──
@@ -88,6 +93,17 @@ def main() -> None:
     data = json.loads(resp.choices[0].message.content)   # chắc chắn parse được vì strict
     print("Structured:", data)
     print("Kiểu tuoi:", type(data["tuoi"]).__name__)      # int, không phải string
+
+    # ── Alternative · cùng 2 tác vụ bằng RESPONSES API ──
+    # Streaming : with client.responses.stream(model=deployment, input="...") as events:
+    #                 for event in events: ...   # event.type == "response.output_text.delta"
+    # Structured: dùng responses.parse + Pydantic cho gọn (khỏi json.loads thủ công):
+    #   from pydantic import BaseModel
+    #   class HoSo(BaseModel):
+    #       ten: str; tuoi: int; so_thich: list[str]
+    #   parsed = client.responses.parse(model=deployment, input="Tạo 1 hồ sơ nhân vật giả tưởng.",
+    #                                   text_format=HoSo)
+    #   print(parsed.output_parsed)   # object HoSo đã validate sẵn
 
 
 if __name__ == "__main__":
