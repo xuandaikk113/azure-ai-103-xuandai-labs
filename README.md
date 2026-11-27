@@ -21,11 +21,12 @@ python _smoke_check.py                     # nghiệm thu: biên dịch mọi la
 - **`GLOSSARY.html`** — tra 130 thuật ngữ (có ô search live) · **`MINDMAP.html`** — sơ đồ quan hệ hệ sinh thái.
 - **`ENDPOINTS.md`** — bảng tra endpoint/URL/token-scope theo dịch vụ (portal, resource endpoint, scope keyless, SDK).
 - Mỗi lab Portal-relevant có **`<tên>.html`** cạnh file `.py` — hướng dẫn step-by-step trên Portal (modern Foundry UI).
+- Mỗi chương có **`_REVIEW.html`** — ôn nhanh: tóm tắt, cú pháp cần nhớ, **chỗ dễ nhầm với service khác**, exam tips/bẫy (00 + bảng built-in roles, 01 + bảng SKU/Deployment Types).
 - **`_template.py`** — khung chuẩn để copy khi tạo lab mới (đã ép stdout UTF-8 cho Windows).
 - **`_smoke_check.py`** — kiểm tra nhanh toàn bộ lab.
 - **`.env.example`** — biến môi trường mẫu · **`assets/`** — dữ liệu mẫu (xem `assets/README.md`).
 
-## 8 nhóm lab
+## Nhóm lab
 
 | # | Thư mục | Chủ đề |
 |---|---------|--------|
@@ -39,6 +40,7 @@ python _smoke_check.py                     # nghiệm thu: biên dịch mọi la
 | 07 | `07_vision_language_and_speech` | Vision, Language, Translator, Speech |
 | 08 | `08_information_extraction` | Document Intelligence & Content Understanding |
 | 09 | `09_observability_and_tracing` | Tracing (OpenTelemetry), monitoring & online evaluation |
+| 10 | `10_production_assistant_agent` | **Mini-repo production**: trợ lý handoff orchestration (Agent Framework), chia module, test, deploy Container Apps |
 
 ## Lộ trình học gợi ý (learner path)
 0. **Hạ tầng Azure** → mở `00_azure_foundations/azure_foundations.html` (tài nguyên, RBAC, networking, CI/CD) + provisioning `00/01` & RBAC bằng code `00/02-06` (scope, managed identity, custom role, audit).
@@ -52,6 +54,9 @@ python _smoke_check.py                     # nghiệm thu: biên dịch mọi la
 8. **Vision / Language / Speech** → `07` (phân tích → tạo ảnh/video → speech).
 9. **Information extraction** → `08`.
 10. **Vận hành** → `09` (tracing, monitoring). Đối chiếu `COVERAGE.md` để không bỏ sót.
+11. **Best practices production** → `10_production_assistant_agent` (handoff orchestration, chia module, test, deploy) — gộp nhiều kỹ năng vào 1 repo chạy được.
+
+> Mỗi chương có thể ôn nhanh bằng **`_REVIEW.html`** (tóm tắt + chỗ dễ nhầm + exam tips).
 
 > Trạng thái kỳ thi: AI-103 đang **beta** (tính đến 11/2026). Luôn đối chiếu
 > [Study guide chính thức](https://learn.microsoft.com/credentials/certifications/resources/study-guides/ai-103)

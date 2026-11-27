@@ -512,6 +512,26 @@
 
 ---
 
+## 10 · production_assistant_agent (mini-repo production)
+
+> **Không phải lab rời** — là 1 repo con hoàn chỉnh để học best practices. Dùng **Microsoft Agent Framework**
+> (`Agent` + `@tool`) theo mẫu **handoff orchestration**: `triage` phân loại intent → chuyển cho specialist.
+> Mock/local, chạy offline; deploy Azure Container Apps (managed identity, keyless).
+
+- **Cấu trúc:** `src/assistant/` (config, chat_client, specialists, router, app CLI, host `/responses`, tools/) ·
+  `mock_api/` (FastAPI đặt phòng/log work) · `data/` (seed SQLite + internal_docs) · `tests/` (offline) ·
+  `Dockerfile` + `deploy/`.
+- **7 intent:** qa · chitchat · meetings (tool→mock API) · docs (retrieval local) · worklog (tool→mock API) ·
+  web (OpenAI `web_search`) · sales (text2sql + chart, **chỉ cho phép SELECT**).
+- **Best practices:** tách tool khỏi logic cốt lõi để unit test không cần LLM; keyless-first; cấu hình tập trung;
+  provider đổi được (Foundry ↔ Azure OpenAI).
+- **Chạy/test:** `uv run pytest 10_production_assistant_agent/tests` (8 test offline). Xem `10_production_assistant_agent/README.md`.
+
+## Tài liệu ôn nhanh mỗi chương
+
+- Mỗi chương `NN_*/` có **`_REVIEW.html`** (CSS chung `assets/review.css`): tóm tắt · cú pháp cần nhớ ·
+  **dễ nhầm với service khác** · exam tips/bẫy. Chương 00 kèm **bảng built-in roles**; chương 01 kèm **bảng SKU/Deployment Types**.
+
 ## Checklist khi viết xong mỗi file
 
 - [ ] Chạy được: `uv run <đường_dẫn_file>.py`.
