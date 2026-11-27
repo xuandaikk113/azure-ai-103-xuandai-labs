@@ -2,10 +2,13 @@
 ====================================================================
 LAB 05/05 · Group chat / Reflection loop: Generator <-> Critic
 --------------------------------------------------------------------
-Dịch vụ      : Microsoft Agent Framework + Foundry
+Dịch vụ      : Microsoft Agent Framework (GroupChatBuilder) + Foundry
 Biến .env    : FOUNDRY_PROJECT_ENDPOINT, FOUNDRY_MODEL
 SDK tiền nhiệm: AutoGen + Semantic Kernel -> Agent Framework.
 Chạy         : uv run 05_multi_agent_orchestration_patterns/05_orch_group_chat_reflection_loop.py
+Trọng tâm    : GroupChatBuilder điều phối LƯỢT NÓI chung giữa nhiều agent (transcript chung),
+               có max_rounds. Điều kiện dừng dùng MARKER chặt ('PASS') — tránh so khớp 'ĐẠT' lỏng
+               (dễ khớp nhầm khi model nói 'CHƯA ĐẠT').
 ====================================================================
 """
 
@@ -28,6 +31,8 @@ from azure.identity import DefaultAzureCredential
 # ── SDK Agent Framework ─────────────────────────────────────────
 from agent_framework import Agent
 from agent_framework.foundry import FoundryChatClient
+# GroupChatBuilder: điều phối group chat DỰNG SẴN (gói agent-framework-orchestrations).
+from agent_framework.orchestrations import GroupChatBuilder
 
 
 def require_env(*names: str) -> dict:
@@ -41,42 +46,60 @@ def require_env(*names: str) -> dict:
     return values
 
 
-def make_agent(cfg: dict, name: str, instructions: str) -> Agent:
-    return Agent(
-        client=FoundryChatClient(
-            project_endpoint=cfg["FOUNDRY_PROJECT_ENDPOINT"],
-            model=cfg["FOUNDRY_MODEL"],
-            credential=DefaultAzureCredential(),
-        ),
-        name=name,
-        instructions=instructions,
-    )
+def make_agent(chat_client, name: str, instructions: str) -> Agent:
+    """Tạo agent dùng CHUNG chat_client (không tạo lại credential/client mỗi agent)."""
+    return Agent(client=chat_client, name=name, instructions=instructions)
+
+
+# Marker chuẩn để báo ĐẠT — critic BUỘC trả đúng token này ở đầu nếu slogan tốt.
+PASS_MARKER = "PASS"
+
+
+def is_approved(feedback: str) -> bool:
+    """True nếu critic duyệt. Dùng startswith MARKER chặt, KHÔNG dùng substring 'ĐẠT'
+    (vì 'CHƯA ĐẠT' cũng chứa 'ĐẠT' -> dừng sai)."""
+    return feedback.strip().upper().startswith(PASS_MARKER)
 
 
 async def main() -> None:
     cfg = require_env("FOUNDRY_PROJECT_ENDPOINT", "FOUNDRY_MODEL")
 
-    generator = make_agent(cfg, "generator", "Viết slogan ngắn cho sản phẩm.")
-    critic = make_agent(cfg, "critic",
-                        "Chấm slogan. Nếu hay thì trả đúng 'ĐẠT'. Nếu chưa, nêu 1 điểm cần sửa.")
+    with DefaultAzureCredential() as credential:
+        chat_client = FoundryChatClient(
+            project_endpoint=cfg["FOUNDRY_PROJECT_ENDPOINT"],
+            model=cfg["FOUNDRY_MODEL"],
+            credential=credential,
+        )
 
-    task = "Slogan cho quán cà phê sách yên tĩnh."
-    draft = (await generator.run(task)).text
-    print("Bản nháp đầu:", draft)
+        generator = make_agent(chat_client, "generator", "Viết/sửa slogan ngắn cho sản phẩm theo góp ý mới nhất.")
+        critic = make_agent(
+            chat_client, "critic",
+            f"Chấm slogan. Nếu đạt: trả ĐÚNG '{PASS_MARKER}'. Nếu chưa: trả 'REVISE: <1 điểm cần sửa>'.",
+        )
 
-    # Vòng lặp phản biện: lặp tối đa 3 lần hoặc tới khi critic nói ĐẠT
-    for round_num in range(1, 4):
-        feedback = (await critic.run(f"Chấm slogan: {draft}")).text
-        print(f"\n[Vòng {round_num}] Critic: {feedback}")
-        if "ĐẠT" in feedback.upper():
-            break
-        # Generator sửa theo góp ý (self-critique nâng chất lượng)
-        draft = (await generator.run(
-            f"Sửa slogan theo góp ý: {feedback}\nSlogan cũ: {draft}"
-        )).text
-        print(f"[Vòng {round_num}] Sửa: {draft}")
+        task = "Slogan cho quán cà phê sách yên tĩnh."
 
-    print("\nSlogan cuối:", draft)
+        # ── API THẬT · GroupChatBuilder (transcript chung, bounded rounds) ──
+        # max_rounds = chặn trên số lượt (an toàn, tránh lặp vô hạn). Orchestrator mặc định
+        # luân phiên các participant; có thể tuỳ biến qua orchestrator_agent/selection_func/
+        # with_termination_condition nếu muốn dừng theo marker 'PASS'.
+        workflow = (
+            GroupChatBuilder(participants=[generator, critic])
+            .with_max_rounds(6)
+            .build()
+        )
+        result = await workflow.run(task)
+        print("== Transcript group chat ==")
+        for output in result.get_outputs():
+            print(output)
+
+        # ── Đối chiếu · reflection loop GHÉP TAY (ĐÃ SỬA điều kiện dừng #4) ──
+        # draft = (await generator.run(task)).text
+        # for round_num in range(1, 4):              # max_turns tường minh
+        #     feedback = (await critic.run(f"Chấm slogan: {draft}")).text
+        #     if is_approved(feedback):              # MARKER chặt, không phải 'ĐẠT' in ...
+        #         break
+        #     draft = (await generator.run(f"Sửa theo góp ý: {feedback}\nSlogan cũ: {draft}")).text
 
 
 if __name__ == "__main__":

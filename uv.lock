@@ -57,6 +57,18 @@ wheels = [
 ]
 
 [[package]]
+name = "agent-framework-orchestrations"
+version = "1.4.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "agent-framework-core" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/8e/f7/4a8d17866c780b88c562b313a84233bca5ef1e60cd831cd6fc7c0291caf8/agent_framework_orchestrations-1.4.2.tar.gz", hash = "sha256:e6210ef9a5303f18d56a4bc7c2166f4ebb89447b467973253eb1c2010fdedff0", size = 66915, upload-time = "2026-11-07T15:42:13.21Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/24/0f/8ad5bc90a9e6ca23953fdda70fb25aa2ab8014e07c518bbd6e5f629fce54/agent_framework_orchestrations-1.4.2-py3-none-any.whl", hash = "sha256:f70421810c2e516ec69b80309440cdf12272bbe798b94ce2dbf1ed39b43855ea", size = 73912, upload-time = "2026-11-07T15:43:10.145Z" },
+]
+
+[[package]]
 name = "aiohappyeyeballs"
 version = "2.7.1"
 source = { registry = "https://pypi.org/simple" }
@@ -4048,6 +4060,7 @@ source = { virtual = "." }
 dependencies = [
     { name = "agent-framework-core" },
     { name = "agent-framework-foundry" },
+    { name = "agent-framework-orchestrations" },
     { name = "azure-ai-contentsafety" },
     { name = "azure-ai-contentunderstanding" },
     { name = "azure-ai-documentintelligence" },
@@ -4079,6 +4092,7 @@ dependencies = [
 requires-dist = [
     { name = "agent-framework-core" },
     { name = "agent-framework-foundry" },
+    { name = "agent-framework-orchestrations", specifier = ">=1.4.2" },
     { name = "azure-ai-contentsafety" },
     { name = "azure-ai-contentunderstanding" },
     { name = "azure-ai-documentintelligence" },

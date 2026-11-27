@@ -2,20 +2,19 @@
 ====================================================================
 LAB 04/04 · Agent Framework: lưu/khôi phục trạng thái hội thoại
 --------------------------------------------------------------------
-Dịch vụ      : Microsoft Agent Framework + Foundry
+Dịch vụ      : Microsoft Agent Framework (AgentSession + FileHistoryProvider) + Foundry
 Biến .env    : FOUNDRY_PROJECT_ENDPOINT, FOUNDRY_MODEL
 SDK tiền nhiệm: ChatHistory của Semantic Kernel -> Agent Framework.
 Chạy         : uv run 04_agent_conversation_management/04_conv_agent_framework_thread_persistence.py
-Lưu ý        : Agent Framework có AgentSession để quản lý thread server-side; ở đây minh hoạ
-               persistence ở mức TRẠNG THÁI (serialize ra JSON) để resume sau — tra sample
-               agent-framework cho API AgentSession chính thức.
+Trọng tâm    : DÙNG ĐÚNG cơ chế framework — AgentSession (định danh phiên) + FileHistoryProvider
+               (tự lưu/nạp message ra file theo session_id). KHÔNG tự ghép JSON rồi NHỒI lịch sử
+               vào prompt như bản cũ. Credential tạo 1 lần, dọn qua 'with'.
 ====================================================================
 """
 
 # ── stdlib ──────────────────────────────────────────────────────
 import os
 import sys
-import json
 import asyncio
 
 try:
@@ -30,10 +29,12 @@ from dotenv import load_dotenv
 from azure.identity import DefaultAzureCredential
 
 # ── SDK Agent Framework ─────────────────────────────────────────
-from agent_framework import Agent
+# AgentSession: định danh phiên. FileHistoryProvider: context provider tự lưu/nạp lịch sử ra file.
+from agent_framework import Agent, AgentSession, FileHistoryProvider
 from agent_framework.foundry import FoundryChatClient
 
-STATE_FILE = os.path.join("assets", "output", "conv_state.json")
+HISTORY_DIR = os.path.join("assets", "output", "agent_history")   # nơi lưu lịch sử hội thoại
+SESSION_ID = "user-dai"                                            # 1 phiên = 1 người dùng / 1 cuộc
 
 
 def require_env(*names: str) -> dict:
@@ -47,39 +48,41 @@ def require_env(*names: str) -> dict:
     return values
 
 
-def build_agent(cfg: dict) -> Agent:
-    return Agent(
-        client=FoundryChatClient(
-            project_endpoint=cfg["FOUNDRY_PROJECT_ENDPOINT"],
-            model=cfg["FOUNDRY_MODEL"],
-            credential=DefaultAzureCredential(),
-        ),
-        name="ai103-persist-agent",
-        instructions="Bạn là trợ lý tiếng Việt, nhớ ngữ cảnh đã trao đổi.",
-    )
-
-
 async def main() -> None:
     cfg = require_env("FOUNDRY_PROJECT_ENDPOINT", "FOUNDRY_MODEL")
-    os.makedirs(os.path.dirname(STATE_FILE), exist_ok=True)
-    agent = build_agent(cfg)
+    os.makedirs(HISTORY_DIR, exist_ok=True)
 
-    # ── Phiên 1: hỏi, rồi LƯU trạng thái hội thoại ra JSON ──
-    history = []
-    q1 = "Tên tôi là Đại."
-    r1 = await agent.run(q1)
-    history += [{"role": "user", "content": q1}, {"role": "assistant", "content": r1.text}]
-    with open(STATE_FILE, "w", encoding="utf-8") as f:
-        json.dump(history, f, ensure_ascii=False)        # serialize để resume sau
-    print("Phiên 1:", r1.text)
+    with DefaultAzureCredential() as credential:
+        chat_client = FoundryChatClient(
+            project_endpoint=cfg["FOUNDRY_PROJECT_ENDPOINT"],
+            model=cfg["FOUNDRY_MODEL"],
+            credential=credential,
+        )
+        # Gắn FileHistoryProvider -> agent TỰ lưu message ra file theo session_id (load_messages=True).
+        agent = Agent(
+            client=chat_client,
+            name="ai103-persist-agent",
+            instructions="Bạn là trợ lý tiếng Việt, nhớ ngữ cảnh đã trao đổi.",
+            context_providers=[FileHistoryProvider(HISTORY_DIR)],
+        )
 
-    # ── Phiên 2 (giả lập chạy lại): NẠP trạng thái rồi hỏi tiếp dựa trên ngữ cảnh ──
-    with open(STATE_FILE, encoding="utf-8") as f:
-        history = json.load(f)
-    context_str = "\n".join(f"{m['role']}: {m['content']}" for m in history)
-    q2 = f"Dựa trên hội thoại trước:\n{context_str}\n\nHỏi: Tên tôi là gì?"
-    r2 = await agent.run(q2)
-    print("Phiên 2:", r2.text)
+        # ── Phiên 1: hỏi — framework TỰ lưu lịch sử (không cần serialize tay) ──
+        session = AgentSession(session_id=SESSION_ID)
+        first = await agent.run("Tên tôi là Đại.", session=session)
+        print("Phiên 1:", first.text)
+
+        # ── Phiên 2 (giả lập restart): cùng session_id -> lịch sử TỰ được nạp lại ──
+        # Không gửi lại lịch sử, không nhồi vào prompt — provider lo việc đó.
+        restored_session = AgentSession(session_id=SESSION_ID)
+        second = await agent.run("Tên tôi là gì?", session=restored_session)
+        print("Phiên 2:", second.text)
+
+        # ── Đối chiếu · bản GHÉP TAY (bản cũ — serialize JSON rồi NHỒI prompt) ──
+        # Nhược điểm: tự quản history, tốn token vì dồn cả lịch sử vào mỗi prompt, dễ sai định dạng.
+        #   history += [{"role": "user", "content": q1}, {"role": "assistant", "content": r1.text}]
+        #   json.dump(history, open(STATE_FILE, "w"))
+        #   context_str = "\n".join(f"{m['role']}: {m['content']}" for m in history)
+        #   r2 = await agent.run(f"Dựa trên hội thoại:\n{context_str}\nHỏi: Tên tôi là gì?")
 
 
 if __name__ == "__main__":

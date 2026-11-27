@@ -46,6 +46,7 @@ dependencies = [
     "matplotlib>=3.11.2",
     "httpx>=0.28.1",
     "pytest>=9.2.0",
+    "agent-framework-orchestrations>=1.4.2",
 ]
 
 [tool.uv]

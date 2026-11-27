@@ -16,7 +16,7 @@
 <li><b>Handoff:</b> router/triage đọc intent rồi <b>trao quyền</b> cho agent chuyên gia phù hợp — định tuyến động.</li>
 <li><b>Supervisor (agent-as-tool):</b> supervisor coi agent con như <b>tool</b> (<code>.as_tool()</code>), tự quyết gọi cái nào, kiểm soát <b>tập trung</b>.</li>
 <li><b>Group chat / Reflection:</b> vòng lặp Generator ↔ Critic, lặp tới khi "ĐẠT" hoặc hết vòng — nâng chất lượng, <b>bắt buộc có điều kiện dừng</b>.</li>
-<li><b>Dựng sẵn:</b> Agent Framework có orchestration có sẵn (Sequential/Concurrent/Handoff/Magentic) và <b>WorkflowBuilder</b> (graph <code>Executor</code> + edges) cho luồng phức tạp; các lab ghép thủ công bằng <code>await</code> để thấy rõ luồng.</li>
+<li><b>Dựng sẵn:</b> cài <code>agent-framework-orchestrations</code> để dùng <code>SequentialBuilder</code> / <code>ConcurrentBuilder</code> / <code>HandoffBuilder</code> / <code>MagenticBuilder</code> / <code>GroupChatBuilder</code> (<code>.build()</code> → <code>Workflow</code>, <code>await wf.run(task)</code> → <code>.get_outputs()</code>); <b>WorkflowBuilder</b> cho graph <code>Executor</code> + edges tuỳ biến. Các lab 05 giờ dùng builder thật, bản ghép tay giữ trong comment để đối chiếu.</li>
 </ul></div>
 
 <h2>2. Cú pháp cần nhớ</h2>

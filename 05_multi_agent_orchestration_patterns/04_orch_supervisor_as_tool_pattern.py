@@ -2,12 +2,12 @@
 ====================================================================
 LAB 05/04 · Supervisor gọi agent con như TOOL (agent-as-tool)
 --------------------------------------------------------------------
-Dịch vụ      : Microsoft Agent Framework + Foundry
+Dịch vụ      : Microsoft Agent Framework (.as_tool / MagenticBuilder) + Foundry
 Biến .env    : FOUNDRY_PROJECT_ENDPOINT, FOUNDRY_MODEL
 SDK tiền nhiệm: AutoGen + Semantic Kernel -> Agent Framework.
 Chạy         : uv run 05_multi_agent_orchestration_patterns/04_orch_supervisor_as_tool_pattern.py
-Ghi chú      : Agent Framework có .as_tool() để biến agent con thành tool. Ở đây minh hoạ mô hình
-               bằng cách supervisor gọi các agent con rồi tổng hợp (kiểm soát tập trung).
+Trọng tâm    : DÙNG ĐÚNG agent.as_tool() — supervisor có các agent con làm TOOL và TỰ QUYẾT gọi tool
+               nào (kiểm soát tập trung), KHÔNG gọi cứng tuần tự như bản cũ.
 ====================================================================
 """
 
@@ -43,38 +43,55 @@ def require_env(*names: str) -> dict:
     return values
 
 
-def make_agent(cfg: dict, name: str, instructions: str) -> Agent:
-    return Agent(
-        client=FoundryChatClient(
-            project_endpoint=cfg["FOUNDRY_PROJECT_ENDPOINT"],
-            model=cfg["FOUNDRY_MODEL"],
-            credential=DefaultAzureCredential(),
-        ),
-        name=name,
-        instructions=instructions,
-    )
+def make_agent(chat_client, name: str, instructions: str) -> Agent:
+    """Tạo agent dùng CHUNG chat_client (không tạo lại credential/client mỗi agent)."""
+    return Agent(client=chat_client, name=name, instructions=instructions)
 
 
 async def main() -> None:
     cfg = require_env("FOUNDRY_PROJECT_ENDPOINT", "FOUNDRY_MODEL")
 
-    # Các agent con đóng vai "tool" chuyên biệt
-    translate_agent = make_agent(cfg, "translator", "Dịch câu sang tiếng Anh. Chỉ trả bản dịch.")
-    summarize_agent = make_agent(cfg, "summarizer", "Tóm tắt 1 câu. Chỉ trả tóm tắt.")
+    with DefaultAzureCredential() as credential:
+        chat_client = FoundryChatClient(
+            project_endpoint=cfg["FOUNDRY_PROJECT_ENDPOINT"],
+            model=cfg["FOUNDRY_MODEL"],
+            credential=credential,
+        )
 
-    # Supervisor điều phối: quyết định dùng agent con nào rồi tổng hợp
-    supervisor = make_agent(cfg, "supervisor", "Bạn điều phối và tổng hợp kết quả từ trợ lý con.")
+        # Agent con chuyên biệt.
+        translator = make_agent(chat_client, "translator", "Dịch câu sang tiếng Anh. Chỉ trả bản dịch.")
+        summarizer = make_agent(chat_client, "summarizer", "Tóm tắt 1 câu. Chỉ trả tóm tắt.")
 
-    text = "Trí tuệ nhân tạo đang thay đổi cách con người làm việc mỗi ngày."
+        # ── API THẬT · agent.as_tool() ────────────────────────────────
+        # Biến agent con thành TOOL -> supervisor tự quyết gọi tool nào, khi nào.
+        translate_tool = translator.as_tool(
+            name="translate", description="Dịch văn bản sang tiếng Anh", arg_name="text",
+        )
+        summarize_tool = summarizer.as_tool(
+            name="summarize", description="Tóm tắt văn bản trong 1 câu", arg_name="text",
+        )
+        supervisor = Agent(
+            client=chat_client,
+            name="supervisor",
+            instructions="Bạn điều phối: dùng tool translate và summarize khi cần, rồi tổng hợp kết quả cho người dùng.",
+            tools=[translate_tool, summarize_tool],
+        )
 
-    # Supervisor "gọi tool" = gọi agent con (ở đây minh hoạ trực tiếp)
-    translation = (await translate_agent.run(text)).text
-    summary = (await summarize_agent.run(text)).text
+        text = "Trí tuệ nhân tạo đang thay đổi cách con người làm việc mỗi ngày."
+        result = await supervisor.run(f"Hãy dịch sang tiếng Anh và tóm tắt câu sau: {text}")
+        print("Supervisor:", result.text)
 
-    result = await supervisor.run(
-        f"Tổng hợp cho người dùng:\n- Bản dịch: {translation}\n- Tóm tắt: {summary}"
-    )
-    print("Supervisor:", result.text)
+        # ── Mở rộng · MagenticBuilder (manager điều phối nhiều agent có kế hoạch) ──
+        # Khi cần "manager" lập kế hoạch + điều phối phức tạp hơn as_tool:
+        #   from agent_framework.orchestrations import MagenticBuilder
+        #   workflow = MagenticBuilder(participants=[translator, summarizer],
+        #                              manager_agent=supervisor, max_round_count=5).build()
+        #   result = await workflow.run(text)
+
+        # ── Đối chiếu · bản GHÉP TAY (gọi cứng tuần tự — bản cũ, KHÔNG phải as_tool) ──
+        #   translation = (await translator.run(text)).text
+        #   summary = (await summarizer.run(text)).text
+        #   result = await supervisor.run(f"Tổng hợp: dịch={translation}; tóm tắt={summary}")
 
 
 if __name__ == "__main__":
