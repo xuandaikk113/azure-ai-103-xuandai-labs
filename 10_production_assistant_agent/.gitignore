@@ -1,0 +1,7 @@
+# Artifacts sinh ra lúc chạy — không commit.
+data/sales.sqlite
+data/charts/
+__pycache__/
+*.pyc
+.pytest_cache/
+.env

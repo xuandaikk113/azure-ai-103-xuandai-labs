@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+.venv/
+tests/
+data/sales.sqlite
+data/charts/
+.env
+.pytest_cache/

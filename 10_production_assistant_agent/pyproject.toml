@@ -1,0 +1,29 @@
+# Mini-repo độc lập: trợ lý production-ready (có thể deploy riêng).
+# Trong repo labs, các gói này đã có ở pyproject gốc -> `uv run` chạy ngay.
+# Khi deploy riêng (Docker), file này là nguồn dependency của container.
+[project]
+name = "production-assistant-agent"
+version = "0.1.0"
+description = "Trợ lý production-ready (Microsoft Agent Framework, handoff orchestration)"
+requires-python = ">=3.11"
+dependencies = [
+    "python-dotenv",
+    "azure-identity",            # keyless (DefaultAzureCredential)
+    "openai",                    # web_search tool + text2sql generator (Responses /v1)
+    "agent-framework-core",      # Agent + @tool (lõi)
+    "agent-framework-foundry",   # FoundryChatClient
+    "fastapi",                   # host /responses + mock API
+    "uvicorn[standard]",         # ASGI server
+    "httpx",                     # gọi mock API nội bộ
+    "matplotlib",                # vẽ chart cho text2sql
+]
+
+[dependency-groups]
+dev = ["pytest"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]             # cho `import assistant...` khi chạy pytest
+testpaths = ["tests"]
+
+[tool.uv]
+package = false
