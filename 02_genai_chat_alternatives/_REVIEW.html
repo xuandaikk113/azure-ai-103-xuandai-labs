@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="vi"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Review 02 · GenAI Chat Alternatives (Completions, Responses, Foundry Models)</title>
+<link rel="stylesheet" href="../assets/review.css">
+</head><body><div class="wrap">
+<h1>Review 02 · GenAI Chat Alternatives</h1>
+<p class="sub">3 cách gọi model: Chat Completions vs Responses API vs Foundry Models /v1; streaming, structured JSON schema, multimodal, prompt engineering. Ôn nhanh + bẫy thi.</p>
+<p><span class="pill">Build gen-AI</span><span class="pill">Responses API</span><span class="pill">Structured output</span><span class="pill">Multimodal</span><span class="pill">Prompt eng.</span></p>
+
+<h2>1. Tóm tắt</h2>
+<div class="card"><ul>
+<li><b>3 "mặt" của cùng OpenAI SDK:</b> <code>chat.completions.create</code> (cổ điển, dùng <code>messages</code>), <code>responses.create</code> (chuẩn mới agentic, dùng <code>input</code>/<code>instructions</code>), và Foundry Models (model non-OpenAI) cùng đi qua endpoint OpenAI <b>/v1</b>.</li>
+<li><b>Endpoint v1 khuyến nghị:</b> <code>OpenAI(base_url=".../openai/v1/")</code> — KHÔNG cần <code>api_version</code>. Cách classic <code>AzureOpenAI(azure_endpoint=..., api_version=...)</code> vẫn chạy nhưng cũ hơn.</li>
+<li><b><code>model</code> = tên DEPLOYMENT</b>, không phải tên model gốc.</li>
+<li><b>Responses API</b> là nền cho agent và chuỗi <code>previous_response_id</code> (xem chương 03/04); hợp nhất Chat Completions + Assistants API cũ.</li>
+<li><b>Streaming:</b> <code>stream=True</code> → lặp các <code>delta</code>. <b>Structured output:</b> <code>response_format</code> kiểu <code>json_schema</code> với <code>strict:true</code> + <code>additionalProperties:false</code>.</li>
+<li><b>Multimodal:</b> gửi content parts (<code>input_text</code>/<code>input_image</code>/<code>input_audio</code>) cho model hỗ trợ (vd gpt-4o).</li>
+<li><b>Prompt engineering:</b> system message + few-shot + grounding + tham số (temperature/top_p/max_tokens) = cách "optimize" rẻ nhất, không đụng trọng số.</li>
+</ul></div>
+
+<h2>2. Cú pháp cần nhớ</h2>
+<pre><code># Client v1 (khuyến nghị) — một client cho cả chat lẫn responses:
+from openai import OpenAI
+client = OpenAI(base_url=endpoint.rstrip("/") + "/openai/v1/", api_key=key)
+#   Keyless: api_key=get_bearer_token_provider(DefaultAzureCredential(),
+#                       "https://ai.azure.com/.default")   # scope cho /v1
+
+# (1) Chat Completions — cổ điển, messages[]:
+r = client.chat.completions.create(model=deployment,
+        messages=[{"role":"system","content":"..."},{"role":"user","content":"..."}])
+print(r.choices[0].message.content)
+
+# (2) Responses API — input + instructions, output_text, có id để nối lượt:
+resp = client.responses.create(model=deployment,
+        instructions="~ system message", input="câu hỏi")
+print(resp.output_text, resp.id)
+
+# (3) Streaming:
+stream = client.chat.completions.create(model=deployment, messages=[...], stream=True)
+for chunk in stream:
+    if chunk.choices and chunk.choices[0].delta.content:
+        print(chunk.choices[0].delta.content, end="")
+
+# (4) Structured output (JSON Schema strict):
+response_format={"type":"json_schema",
+    "json_schema":{"name":"ho_so","schema":schema,"strict":True}}
+#   schema cần "additionalProperties": False + liệt kê "required".
+#   Gọn hơn: client.responses.parse(model=..., input=..., text_format=PydanticModel)
+
+# (5) Foundry Models (non-OpenAI) — CÙNG /v1, chỉ đổi model + embeddings:
+client.chat.completions.create(model="<llama/mistral/...>", messages=[...])
+client.embeddings.create(model=embed_deployment, input="text")   # ra vector</code></pre>
+
+<h2>3. Dễ nhầm với service khác</h2>
+<table>
+<tr><th>Cặp dễ nhầm</th><th>Phân biệt</th></tr>
+<tr><td>chat.completions vs responses</td><td>completions = <code>messages[]</code> + <code>choices[0].message.content</code>, stateless. responses = <code>input</code>/<code>instructions</code> + <code>output_text</code> + <code>previous_response_id</code> (state nhẹ server), là nền cho agent/tools. Đề nói "multi-turn/agentic/nối lượt không gửi lại lịch sử" → Responses.</td></tr>
+<tr><td>Azure OpenAI endpoint vs Foundry Models endpoint</td><td>Cùng OpenAI /v1, cùng SDK. Azure OpenAI = model của OpenAI (gpt-4o…). Foundry Models = catalog non-OpenAI (Llama/Mistral/DeepSeek/Cohere) qua Serverless (MaaS). Khác nhau ở <b>model name</b> và tài nguyên, không khác cách gọi.</td></tr>
+<tr><td><code>azure-ai-inference</code> (ChatCompletionsClient) vs OpenAI SDK</td><td><code>azure-ai-inference</code> đã <b>DEPRECATED (retire 2026-08-26)</b>. Đề nhắc <code>ChatCompletionsClient</code>/<code>EmbeddingsClient</code> = dấu hiệu đáp án cũ → chọn OpenAI SDK /v1.</td></tr>
+<tr><td>Structured output (json_schema strict) vs json_object mode</td><td><code>json_object</code> chỉ đảm bảo "là JSON hợp lệ". <code>json_schema</code> + <code>strict:true</code> ép đúng schema (field, kiểu). Đề nói "đảm bảo đúng cấu trúc/kiểu" → json_schema strict.</td></tr>
+<tr><td>Prompt engineering vs Fine-tune vs RAG</td><td>Prompt/tham số: đổi chỉ dẫn, rẻ nhất, không đụng model. Fine-tune: đổi trọng số (JSONL, tốn hosting). RAG: thêm tri thức lúc chạy. Đề "thêm kiến thức mới thường xuyên" → RAG; "đổi tone/format cố định" → prompt trước, fine-tune sau.</td></tr>
+</table>
+
+<h2>4. Exam tips &amp; bẫy</h2>
+<div class="card tip"><ul>
+<li>Đề nói <b>"multi-turn, agentic, nối hội thoại server-side"</b> → <b>Responses API</b> (<code>previous_response_id</code>), không phải chat.completions.</li>
+<li>Đề nói <b>"in dần token real-time / UX gõ chữ"</b> → <b>streaming</b> (<code>stream=True</code>, đọc <code>delta</code>).</li>
+<li>Đề nói <b>"output phải đúng schema để code xử lý"</b> → <b>Structured output json_schema strict</b> (+<code>additionalProperties:false</code>), hoặc <code>responses.parse</code> với Pydantic.</li>
+<li>Đề nói <b>"gọi Llama/Mistral/DeepSeek"</b> → Foundry Models qua <b>OpenAI /v1</b>, chỉ đổi <code>model</code>.</li>
+<li><code>model</code> phải là tên <b>deployment</b>; sai tên → 404 DeploymentNotFound (không phải lỗi quyền).</li>
+<li>Endpoint <b>/v1</b> không cần <code>api_version</code>; token scope là <code>https://ai.azure.com/.default</code> (không phải <code>cognitiveservices.azure.com</code> — scope đó cho AzureOpenAI classic).</li>
+<li>Multimodal: chỉ model hỗ trợ modality (vd gpt-4o) mới nhận ảnh/audio; cẩn thận <b>prompt-injection giấu trong ảnh</b>.</li>
+<li>Giảm "bịa" (fabrication): <b>grounding</b> + <b>temperature thấp</b>, không nhất thiết fine-tune.</li>
+</ul></div>
+
+<p class="nav">Chương: <a href="../01_foundry_setup_and_deployments/_REVIEW.html">◀ 01</a> <a href="../03_build_and_deploy_agents/_REVIEW.html">03 ▶</a></p>
+<p class="sub" style="margin-top:28px">Tài liệu ôn tập — không phải nguồn chính thức; luôn đối chiếu Microsoft Learn 2026 (API/SDK đổi thường xuyên).</p>
+</div></body></html>

@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="vi"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Review 07 · Vision, Language &amp; Speech (Image Analysis, Language, Translator, Speech)</title>
+<link rel="stylesheet" href="../assets/review.css">
+</head><body><div class="wrap">
+<h1>Review 07 · Vision, Language &amp; Speech</h1>
+<p class="sub">Image Analysis 4.0, Language (NER/PII/sentiment/CLU/summarization), Translator (text vs document), Speech (STT/TTS/SSML/Voice Live), image &amp; video generation. Ôn nhanh + bẫy thi.</p>
+<p><span class="pill">Vision</span><span class="pill">Language</span><span class="pill">Translator</span><span class="pill">Speech</span></p>
+
+<h2>1. Tóm tắt</h2>
+<div class="card"><ul>
+<li><b>Image Analysis 4.0</b> (cũ: <i>Computer Vision 3.x</i>) = 1 call nhiều <code>VisualFeatures</code>: CAPTION/DENSE_CAPTIONS, TAGS, <b>READ</b> (OCR), OBJECTS, PEOPLE, SMART_CROPS. SDK <code>azure-ai-vision-imageanalysis</code>.</li>
+<li><b>Language service</b> (cũ: <i>Text Analytics</i>): NER (<code>recognize_entities</code>), <b>PII + redaction</b> (<code>recognize_pii_entities</code> → <code>redacted_text</code>), sentiment + <b>opinion mining</b> (<code>analyze_sentiment(show_opinion_mining=True)</code>).</li>
+<li><b>CLU</b> (Conversational Language Understanding, cũ: <i>LUIS</i>) = intent + entity; cần project + deployment. <b>Summarization</b>: extractive (chọn câu gốc) vs abstractive (viết lại) — đều long-running (<code>begin_*</code>).</li>
+<li><b>Translator</b>: text (nhanh, đồng bộ) vs <b>document translation</b> (async/long-running, đọc blob nguồn→đích, cần SAS).</li>
+<li><b>Speech</b>: STT (<code>SpeechRecognizer</code>), TTS (<code>SpeechSynthesizer</code>), <b>SSML</b> chỉnh rate/pitch/break/voice. <b>Voice Live</b> = realtime speech-to-speech, SDK <b>async-only</b> (websocket), gộp STT+LLM+TTS.</li>
+<li><b>Image/Video generation</b> (tạo ảnh/video) qua OpenAI <code>images.generate</code>/<code>images.edit</code> — <b>khác hẳn</b> phân tích ảnh; video generation là <b>async job</b>.</li>
+</ul></div>
+
+<h2>2. Cú pháp cần nhớ</h2>
+<pre><code># IMAGE ANALYSIS 4.0 — 1 call nhiều feature:
+from azure.ai.vision.imageanalysis import ImageAnalysisClient
+from azure.ai.vision.imageanalysis.models import VisualFeatures
+result = client.analyze(image_data=data, visual_features=[
+    VisualFeatures.CAPTION, VisualFeatures.TAGS,
+    VisualFeatures.READ,                 # READ = OCR (thay OCR cũ)
+    VisualFeatures.OBJECTS, VisualFeatures.PEOPLE, VisualFeatures.SMART_CROPS])
+
+# LANGUAGE — NER / PII redaction / sentiment + opinion:
+client.recognize_entities(docs)
+for doc in client.recognize_pii_entities(docs):
+    print(doc.redacted_text)             # text đã che PII
+client.analyze_sentiment(docs, show_opinion_mining=True)
+
+# CLU (intent/entity) + summarization 2 kiểu:
+clu.analyze_conversation(task={...})     # top intent + entities (cần project+deployment)
+ta.begin_extract_summary(docs)           # extractive: chọn câu gốc
+ta.begin_abstract_summary(docs)          # abstractive: viết lại
+
+# TRANSLATOR — text (sync) vs document (async):
+from azure.ai.translation.text import TextTranslationClient
+# DocumentTranslationClient = batch async qua blob nguồn/đích + SAS
+
+# SPEECH — TTS + STT; Voice Live realtime ASYNC-ONLY:
+synthesizer = speechsdk.SpeechSynthesizer(speech_config=speech_config)  # TTS (SSML được)
+recognizer  = speechsdk.SpeechRecognizer(speech_config=speech_config, audio_config=audio_config)
+result = recognizer.recognize_once()     # STT
+# Voice Live: async with ... (asyncio + websocket), stream audio in/out
+
+# IMAGE GENERATION (khác phân tích ảnh):
+client.images.generate(model=deployment, prompt="...")   # text-to-image
+client.images.edit(model=deployment, image=..., mask=...) # inpainting</code></pre>
+
+<h2>3. Dễ nhầm với service khác</h2>
+<table>
+<tr><th>Cặp dễ nhầm</th><th>Phân biệt</th></tr>
+<tr><td>Image Analysis vs Image generation</td><td>Analysis = <b>hiểu</b> ảnh có sẵn (caption/tag/OCR/object) qua <code>azure-ai-vision-imageanalysis</code>. Generation = <b>tạo</b> ảnh từ text qua OpenAI <code>images.generate</code>. Đề "mô tả/đọc chữ trong ảnh" → Analysis; "vẽ ảnh từ prompt" → generation.</td></tr>
+<tr><td>CLU vs LUIS</td><td>CLU là bản mới trong Language service; LUIS đã nghỉ hưu. Đề nhắc LUIS = đáp án cũ → chọn CLU.</td></tr>
+<tr><td>Extractive vs Abstractive summary</td><td>Extractive = lấy nguyên câu quan trọng (<code>begin_extract_summary</code>). Abstractive = <b>viết lại</b> ngắn gọn bằng từ mới (<code>begin_abstract_summary</code>).</td></tr>
+<tr><td>Translator text vs document</td><td>Text = chuỗi ngắn, đồng bộ, nhiều target cùng lúc. Document = file (giữ layout/format), <b>async qua blob</b> + SAS. Đề "dịch hàng loạt file giữ định dạng" → document translation.</td></tr>
+<tr><td>Content Safety vs Image/Text Analysis</td><td>Content Safety = kiểm duyệt an toàn (Hate/SelfHarm/Sexual/Violence, severity). Image/Text Analysis = trích thông tin (caption/entity). Đề "lọc nội dung độc hại" → Content Safety (lab 01).</td></tr>
+<tr><td>Voice Live vs STT+TTS rời</td><td>Voice Live = 1 SDK realtime gộp STT+LLM+TTS (speech-to-speech), <b>async-only</b>. STT+TTS rời = tự ghép từng bước. Đề "hội thoại giọng nói realtime low-latency" → Voice Live.</td></tr>
+</table>
+
+<h2>4. Exam tips &amp; bẫy</h2>
+<div class="card tip"><ul>
+<li>Đề nói <b>"đọc chữ (OCR) trong ảnh/scan"</b> → Image Analysis <b>VisualFeatures.READ</b> (OCR cũ đã thay).</li>
+<li>Đề nói <b>"che/ẩn thông tin cá nhân trong văn bản"</b> → <code>recognize_pii_entities</code> → dùng <b>redacted_text</b>.</li>
+<li>Đề nói <b>"ý kiến về từng khía cạnh (món ăn/dịch vụ...)"</b> → sentiment + <b>opinion mining</b> (show_opinion_mining=True).</li>
+<li>Đề nói <b>"hiểu ý định người dùng + trích entity trong hội thoại"</b> → <b>CLU</b> (không LUIS).</li>
+<li>Đề nói <b>"tóm tắt giữ nguyên câu gốc"</b> → extractive; <b>"tóm tắt diễn đạt lại"</b> → abstractive.</li>
+<li>Đề nói <b>"dịch nhiều tài liệu giữ định dạng"</b> → Document Translation (async, blob+SAS); dịch chuỗi nhanh → Text Translation.</li>
+<li>Đề nói <b>"điều chỉnh tốc độ/cao độ/giọng đọc TTS"</b> → <b>SSML</b> (rate/pitch/break/voice), chọn neural voice.</li>
+<li>Đề nói <b>"trợ lý giọng nói realtime"</b> → <b>Voice Live</b>, nhớ code <b>async</b> (asyncio/websocket), không có bản sync.</li>
+<li>Image Analysis 4.0: nhiều feature trong <b>1 call</b> tiết kiệm request; SMART_CROPS trả vùng theo aspect ratio; OBJECTS/PEOPLE trả bounding box.</li>
+</ul></div>
+
+<p class="nav">Chương: <a href="../06_rag_and_foundry_iq_grounding/_REVIEW.html">◀ 06</a> <a href="../08_information_extraction/_REVIEW.html">08 ▶</a></p>
+<p class="sub" style="margin-top:28px">Tài liệu ôn tập — không phải nguồn chính thức; luôn đối chiếu Microsoft Learn 2026 (tên SDK/feature đổi thường xuyên).</p>
+</div></body></html>

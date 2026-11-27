@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="vi"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Review 04 · Agent Conversation Management (State, Threads, Memory)</title>
+<link rel="stylesheet" href="../assets/review.css">
+</head><body><div class="wrap">
+<h1>Review 04 · Agent Conversation Management</h1>
+<p class="sub">Quản lý trạng thái hội thoại: stateless thủ công vs Conversations/threads server vs previous_response_id vs Agent Framework thread vs memory provider + context compaction. Ôn nhanh + bẫy thi.</p>
+<p><span class="pill">Conversation state</span><span class="pill">Threads</span><span class="pill">previous_response_id</span><span class="pill">Memory</span></p>
+
+<h2>1. Tóm tắt</h2>
+<div class="card"><ul>
+<li><b>5 cách giữ ngữ cảnh</b>, từ nhẹ client đến bền server: (1) tự quản <code>messages[]</code> stateless; (2) <b>Conversations API</b> server-managed; (3) <b>previous_response_id</b> (Responses chaining); (4) <b>Agent Framework thread</b> (serialize/resume); (5) <b>memory provider</b> + context compaction.</li>
+<li><b>Stateless (04/01):</b> client giữ TOÀN BỘ lịch sử, phải <b>gửi lại mỗi lượt</b> → tốn token khi dài; cần tự <code>trim</code>/nén.</li>
+<li><b>Conversations API (04/02):</b> tạo <code>conversations.create()</code>, add message, rồi <code>responses.create(conversation=conv.id)</code> — server <b>tự nhớ</b>, khỏi gửi lại lịch sử. (Thay cho Threads/Runs của Assistants cũ.)</li>
+<li><b>previous_response_id (04/03):</b> nối lượt chỉ bằng id của response trước — <b>state nhẹ server-side</b>, không cần tạo conversation object. Bỏ tham số này → model không nhớ.</li>
+<li><b>Agent Framework thread (04/04):</b> state tách khỏi agent; <code>serialize</code> ra JSON/file để <b>resume</b> phiên sau. (Thay <code>ChatHistory</code> của Semantic Kernel.)</li>
+<li><b>Memory (04/05):</b> fact bền theo user (vd <code>FoundryMemoryProvider</code>); <b>context compaction</b> = tóm tắt lượt cũ để giảm token mà giữ ý chính.</li>
+</ul></div>
+
+<h2>2. Cú pháp cần nhớ</h2>
+<pre><code># (1) Stateless — client tự giữ &amp; gửi lại toàn bộ:
+messages = [{"role":"system","content":"..."}]
+messages.append({"role":"user","content":q})
+messages = trim_history(messages)                       # giữ system + N lượt gần nhất
+r = client.chat.completions.create(model=dep, messages=messages)
+messages.append({"role":"assistant","content":r.choices[0].message.content})
+
+# (2) Conversations API — server giữ lịch sử:
+conv = oai.conversations.create()
+oai.conversations.items.create(conversation_id=conv.id,
+    items=[{"type":"message","role":"user","content":q}])
+resp = oai.responses.create(model=dep, conversation=conv.id)   # khỏi gửi lại
+oai.conversations.delete(conversation_id=conv.id)
+
+# (3) previous_response_id — state nhẹ, không cần conversation object:
+r1 = client.responses.create(model=dep, input="...")
+r2 = client.responses.create(model=dep, input="...",
+                             previous_response_id=r1.id)  # bỏ -> KHÔNG nhớ
+
+# (4) Agent Framework — serialize thread/state để resume:
+r = await agent.run(q)
+json.dump(history, f)          # lưu ra file
+# phiên sau: load lại history -> chạy tiếp
+
+# (5) Memory + compaction:
+#   - ghi fact user (bền qua phiên) rồi nạp vào system message
+#   - compact: nhờ model "tóm tắt hội thoại sau trong 1-2 câu" -> thay lịch sử dài</code></pre>
+
+<h2>3. Dễ nhầm với service khác</h2>
+<table>
+<tr><th>Cặp dễ nhầm</th><th>Phân biệt</th></tr>
+<tr><td>previous_response_id vs Conversations API</td><td><code>previous_response_id</code> = nối <b>chuỗi tuyến tính</b> bằng id, không có object quản lý. Conversations = <b>object</b> (<code>conv.id</code>) chứa nhiều item, add message độc lập, query/xoá được. Đề "quản lý phiên nhiều message, nhiều người/kênh" → Conversations.</td></tr>
+<tr><td>previous_response_id vs manual history (stateless)</td><td>Chaining = server giữ, chỉ gửi <b>input mới</b>. Manual = client gửi <b>cả messages[]</b> mỗi lượt (tốn token, nhưng toàn quyền kiểm soát/cắt). Đề "giảm token, khỏi gửi lại lịch sử" → previous_response_id.</td></tr>
+<tr><td>Conversations (Responses) vs Threads/Runs (Assistants cũ)</td><td>Assistants API dùng Threads + Runs (queued→in_progress→completed). Chuẩn mới hợp nhất về <b>Conversations + Responses</b>. Đề nhắc <code>runs.create</code>/poll run = ngữ cảnh API cũ.</td></tr>
+<tr><td>Memory vs context compaction</td><td>Memory = <b>kiến thức bền</b> theo user, chọn lọc, dùng lại nhiều phiên (fact/preference). Compaction = <b>nén lịch sử hội thoại hiện tại</b> thành tóm tắt để vừa context window. Khác mục đích: nhớ lâu vs gói gọn.</td></tr>
+<tr><td>Agent Framework thread vs Foundry Conversations</td><td>Thread Agent Framework = state <b>code-first</b>, serialize/resume phía bạn. Conversations = state do <b>Foundry server</b> giữ. Đề "portable, lưu file, resume offline" → Agent Framework thread.</td></tr>
+</table>
+
+<h2>4. Exam tips &amp; bẫy</h2>
+<div class="card tip"><ul>
+<li>Đề nói <b>"không gửi lại toàn bộ lịch sử, state nhẹ"</b> → <b>previous_response_id</b> (Responses chaining).</li>
+<li>Đề nói <b>"server giữ phiên, nhiều message, xoá/quản lý được"</b> → <b>Conversations API</b>.</li>
+<li>Đề nói <b>"toàn quyền kiểm soát ngữ cảnh / cắt-nén tay"</b> → <b>stateless messages[]</b>.</li>
+<li>Đề nói <b>"nhớ sở thích người dùng qua nhiều phiên"</b> → <b>memory provider</b>, KHÔNG phải fine-tune.</li>
+<li>Đề nói <b>"hội thoại quá dài, vượt context"</b> → <b>context compaction</b> (tóm tắt) hoặc trim, không phải tăng model.</li>
+<li><code>chat.completions</code> KHÔNG có <code>previous_response_id</code> — muốn nhớ phải tự gửi lại <code>messages</code> hoặc dùng Conversations.</li>
+<li>Stateless: luôn giữ <b>system message</b> khi trim; chỉ cắt các lượt user/assistant cũ.</li>
+<li>Bỏ <code>previous_response_id</code>/<code>conversation</code> = model mất trí nhớ lượt trước (lỗi logic, không phải lỗi quyền).</li>
+</ul></div>
+
+<p class="nav">Chương: <a href="../03_build_and_deploy_agents/_REVIEW.html">◀ 03</a> <a href="../05_multi_agent_orchestration_patterns/_REVIEW.html">05 ▶</a></p>
+<p class="sub" style="margin-top:28px">Tài liệu ôn tập — không phải nguồn chính thức; luôn đối chiếu Microsoft Learn 2026 (API conversation/memory đổi thường xuyên).</p>
+</div></body></html>

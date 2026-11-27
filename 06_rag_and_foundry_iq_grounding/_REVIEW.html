@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="vi"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Review 06 · RAG &amp; Foundry IQ Grounding (AI Search, Hybrid, Semantic Ranker)</title>
+<link rel="stylesheet" href="../assets/review.css">
+</head><body><div class="wrap">
+<h1>Review 06 · RAG &amp; Foundry IQ Grounding</h1>
+<p class="sub">Azure AI Search: vector + hybrid (BM25), semantic ranker, indexer/skillset enrichment, Foundry IQ knowledge base &amp; agentic retrieval. Ôn nhanh + bẫy thi.</p>
+<p><span class="pill">Implement RAG</span><span class="pill">Azure AI Search</span><span class="pill">Hybrid &amp; Semantic</span><span class="pill">Foundry IQ</span></p>
+
+<h2>1. Tóm tắt</h2>
+<div class="card"><ul>
+<li><b>Azure AI Search</b> (cũ: <i>Azure Cognitive Search</i>) = engine retrieval cho RAG. Index chứa field text + field <b>vector</b>.</li>
+<li><b>3 kiểu truy vấn:</b> <b>keyword/BM25</b> (<code>search_text</code>) · <b>vector</b> (<code>vector_queries</code>, ngữ nghĩa) · <b>hybrid</b> = cả hai cùng lúc (hợp nhất bằng RRF).</li>
+<li><b>Semantic Ranker</b> = lớp <b>L2 rerank</b> trên top kết quả, thêm <code>@search.reranker_score</code> + <b>captions</b> &amp; <b>answers</b>. Cần cấu hình semantic trên index.</li>
+<li><b>Indexer + Skillset</b> = pipeline ingest tự động: data source (blob) → indexer kéo dữ liệu → skillset AI enrichment (OCR/Split/Embedding) → index. Khác với tự <code>push</code> document bằng tay.</li>
+<li><b>Foundry IQ</b> (mới 2026) = <b>knowledge base</b> + <b>agentic retrieval</b> chạy trên AI Search: LLM tự lập kế hoạch truy vấn đa nguồn, permission-aware, trả lời có citation + activity log.</li>
+<li><b>Reasoning effort</b> của agentic retrieval đổi cost/latency; mức <b>minimal = chỉ semantic (không gọi LLM planning)</b>.</li>
+</ul></div>
+
+<h2>2. Cú pháp cần nhớ</h2>
+<pre><code># HYBRID = search_text (BM25) + vector_queries (ngữ nghĩa) cùng 1 call:
+from azure.search.documents import SearchClient
+from azure.search.documents.models import VectorizedQuery
+vector_query = VectorizedQuery(vector=embedding, k_nearest_neighbors=5, fields="contentVector")
+results = search_client.search(
+    search_text=query,                 # phần keyword (BM25)
+    vector_queries=[vector_query])     # phần vector (ngữ nghĩa)
+
+# SEMANTIC RANKER (L2 rerank + captions/answers):
+from azure.search.documents.models import QueryType
+results = search_client.search(
+    search_text="Làm sao để đổi trả hàng?",
+    query_type=QueryType.SEMANTIC,                 # bật semantic ranking
+    semantic_configuration_name="my-semantic-config")
+for doc in results:
+    print(doc["@search.reranker_score"])           # điểm L2 (0-4), khác @search.score (BM25)
+
+# FOUNDRY IQ — agentic retrieval từ 1 knowledge base:
+client = KnowledgeBaseRetrievalClient(endpoint, knowledge_base_name="kb1",
+                                      credential=DefaultAzureCredential())
+result = client.retrieve(retrieval_request=request)   # 'retrieval_reasoning_effort' cao -> kỹ hơn, tốn/chậm hơn
+
+# INDEXER + SKILLSET (control plane, azure.search.documents.indexes):
+#   SearchIndexerClient -> SearchIndexerSkillset(skills=[OcrSkill, SplitSkill, AzureOpenAIEmbeddingSkill])
+#   -> SearchIndexer(data_source_name, skillset_name, target_index_name) -> run_indexer(...)</code></pre>
+
+<h2>3. Dễ nhầm với service khác</h2>
+<table>
+<tr><th>Cặp dễ nhầm</th><th>Phân biệt</th></tr>
+<tr><td>Vector vs Hybrid vs Semantic Ranker</td><td>Vector = tìm theo embedding (ngữ nghĩa). Hybrid = vector + BM25 keyword gộp (RRF). Semantic Ranker = <b>rerank L2</b> <i>sau</i> truy vấn + captions/answers — là bước thêm, không thay hybrid.</td></tr>
+<tr><td>Indexer/Skillset vs manual push</td><td>Indexer = tự <b>pull</b> từ data source theo lịch + enrich bằng skillset. Manual push = app tự đẩy document qua <code>upload_documents</code> (tự lo chunking/embedding).</td></tr>
+<tr><td>Foundry IQ agentic retrieval vs plain query</td><td>Plain query = 1 câu → 1 lần search. Agentic retrieval = LLM <b>tách câu hỏi thành nhiều subquery</b>, chạy nhiều lượt, tổng hợp có citation. Minimal effort bỏ phần LLM (chỉ semantic).</td></tr>
+<tr><td>AI Search RAG vs Bing grounding</td><td>AI Search = tri thức <b>nội bộ</b> bạn tự index (riêng tư). Grounding with Bing = tri thức <b>web công khai, mới</b> (lab 03/07). Đề "dữ liệu nội bộ công ty" → AI Search; "tin tức/web mới nhất" → Bing.</td></tr>
+<tr><td>Semantic Ranker vs Semantic/vector search</td><td>Semantic Ranker (L2 rerank, tốn thêm tier) ≠ "semantic" nghĩa chung của vector search. Reranker_score thang 0-4; score BM25 không giới hạn.</td></tr>
+</table>
+
+<h2>4. Exam tips &amp; bẫy</h2>
+<div class="card tip"><ul>
+<li>Đề nói <b>"kết hợp từ khoá chính xác + hiểu ngữ nghĩa"</b> → <b>Hybrid search</b> (search_text + vector_queries).</li>
+<li>Đề nói <b>"cải thiện thứ hạng kết quả, lấy câu trả lời trực tiếp/captions"</b> → bật <b>Semantic Ranker</b> (query_type=SEMANTIC + semantic config).</li>
+<li>Đề nói <b>"tự động ingest PDF scan từ blob, OCR rồi chunk + embed"</b> → <b>Indexer + Skillset</b> (OCR skill, Split skill, Embedding skill), không viết tay.</li>
+<li>Đề nói <b>"agent tự quyết định truy vấn nhiều nguồn, permission-aware, có citation"</b> → <b>Foundry IQ knowledge base + agentic retrieval</b>.</li>
+<li>Đề nói <b>"giảm chi phí/latency retrieval, không cần LLM planning"</b> → reasoning effort <b>minimal</b> (chỉ semantic).</li>
+<li>Đề nói <b>"dữ liệu nội bộ riêng tư"</b> → AI Search; <b>"thông tin web mới"</b> → Bing grounding. Đừng lẫn.</li>
+<li>Vector search cần index có <b>field vector</b> + tạo embedding trước (cùng model embedding lúc index &amp; lúc query).</li>
+<li>Least privilege để agent chỉ <b>đọc</b> index RAG → role <b>Search Index Data Reader</b> (không phải Search Service Contributor).</li>
+<li>Preview Foundry IQ: tối đa <b>10 knowledge source</b>/knowledge base.</li>
+</ul></div>
+
+<p class="nav">Chương: <a href="../05_multi_agent_orchestration_patterns/_REVIEW.html">◀ 05</a> <a href="../07_vision_language_and_speech/_REVIEW.html">07 ▶</a></p>
+<p class="sub" style="margin-top:28px">Tài liệu ôn tập — không phải nguồn chính thức; luôn đối chiếu Microsoft Learn 2026 (API Foundry IQ/agentic retrieval còn đổi).</p>
+</div></body></html>

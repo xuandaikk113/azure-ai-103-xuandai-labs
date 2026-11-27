@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="vi"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Review 01 · Foundry Setup &amp; Deployments (SKU, Auth, Content Safety)</title>
+<link rel="stylesheet" href="../assets/review.css">
+</head><body><div class="wrap">
+<h1>Review 01 · Foundry Setup &amp; Deployments</h1>
+<p class="sub">Auth (key vs keyless), tạo deployment &amp; các SKU/Deployment Type, content safety, fine-tune. Ôn nhanh + bẫy thi.</p>
+<p><span class="pill">Plan &amp; manage</span><span class="pill">Deployments &amp; SKU</span><span class="pill">Content Safety</span><span class="pill">Fine-tune</span></p>
+
+<h2>1. Tóm tắt</h2>
+<div class="card"><ul>
+<li><b>Auth:</b> keyless (<code>DefaultAzureCredential</code> + token provider) là best practice; API key chỉ để thử nhanh.</li>
+<li><b>Scope token:</b> Azure OpenAI <b>/v1</b> &amp; Foundry Models → <code>https://ai.azure.com/.default</code>; AzureOpenAI classic (azure_endpoint + api_version) → <code>https://cognitiveservices.azure.com/.default</code>.</li>
+<li><b>Deployment:</b> chọn model + <b>SKU</b> (loại hạ tầng/billing) + <b>capacity</b>. OpenAI qua Azure OpenAI; non-OpenAI qua Serverless (MaaS).</li>
+<li><b>Content Safety:</b> 4 category (Hate/SelfHarm/Sexual/Violence), severity 0/2/4/6; mặc định chặn Medium+High. RAI policy gắn vào deployment.</li>
+<li><b>Fine-tune:</b> tùy biến model bằng JSONL; khác RAG, khác prompt. Có chi phí hosting riêng.</li>
+</ul></div>
+
+<h2>2. Bảng SKU / Deployment Types (Azure OpenAI)</h2>
+<table>
+<tr><th>Loại</th><th>Billing</th><th>Khi nào chọn</th></tr>
+<tr><td><b>Standard</b></td><td>per-token, regional</td><td>Dev/test, lưu lượng thấp, cần data ở 1 region cụ thể.</td></tr>
+<tr><td><b>Global Standard</b></td><td>per-token, định tuyến toàn cầu</td><td>Mặc định cho production per-token: quota/throughput cao nhất, giá thấp nhất. Data có thể xử lý ở region bất kỳ.</td></tr>
+<tr><td><b>Data Zone Standard</b></td><td>per-token, trong data zone (US/EU)</td><td>Cần <b>data residency</b> theo vùng (compliance) nhưng vẫn muốn linh hoạt hơn regional.</td></tr>
+<tr><td><b>Provisioned Managed (PTU)</b></td><td>theo capacity (PTU reserved)</td><td>Lưu lượng cao, cần <b>latency ổn định</b> &amp; throughput đảm bảo. Trả theo công suất, không theo token. Có bản Global/Data Zone Provisioned.</td></tr>
+<tr><td><b>Batch (Global Batch)</b></td><td>per-token, ~50% rẻ hơn</td><td>Job <b>offline</b> khối lượng lớn, chấp nhận trả trong ~24h (không realtime).</td></tr>
+<tr><td><b>Serverless / MaaS</b></td><td>per-token</td><td>Model <b>non-OpenAI</b> trong catalog (Llama/Mistral/DeepSeek/Cohere) qua endpoint OpenAI /v1 chung.</td></tr>
+<tr><td><b>Managed Compute</b></td><td>theo giờ VM</td><td>Host model open từ catalog trên VM riêng (toàn quyền, không per-token).</td></tr>
+</table>
+
+<h2>3. Cú pháp cần nhớ</h2>
+<pre><code># Keyless cho /v1 (OpenAI SDK):
+from azure.identity import DefaultAzureCredential, get_bearer_token_provider
+token_provider = get_bearer_token_provider(DefaultAzureCredential(), "https://ai.azure.com/.default")
+client = OpenAI(base_url=".../openai/v1/", api_key=token_provider)
+
+# Tạo deployment (control plane) với SKU + capacity:
+from azure.mgmt.cognitiveservices import CognitiveServicesManagementClient
+mgmt.deployments.begin_create_or_update(rg, account, deployment_name, {
+    "sku": {"name": "GlobalStandard", "capacity": 50},
+    "properties": {"model": {"format": "OpenAI", "name": "gpt-...", "version": "..."}}})
+
+# Content Safety:
+result = content_safety_client.analyze_text(AnalyzeTextOptions(text="..."))
+for item in result.categories_analysis:  # severity 0/2/4/6 theo 4 category
+    ...</code></pre>
+
+<h2>4. Dễ nhầm với service khác</h2>
+<table>
+<tr><th>Cặp dễ nhầm</th><th>Phân biệt</th></tr>
+<tr><td>Azure OpenAI endpoint vs Foundry Models endpoint</td><td>Cùng OpenAI /v1 nhưng: Azure OpenAI = model OpenAI; Foundry Models = catalog non-OpenAI (MaaS). Scope token giống nhau (<code>ai.azure.com</code>).</td></tr>
+<tr><td>Content Safety (SDK riêng) vs Content Filter / RAI policy</td><td>Content Safety = API phân tích text/ảnh độc lập. RAI policy = bộ lọc gắn vào <b>deployment</b> Azure OpenAI (chặn tự động). TODO: override RAI qua ARM API.</td></tr>
+<tr><td>Fine-tune vs RAG vs Prompt engineering</td><td>Fine-tune: đổi trọng số (cần JSONL, tốn hosting). RAG: thêm tri thức lúc chạy. Prompt: chỉ đổi chỉ dẫn. Đề hỏi "thêm kiến thức mới thường xuyên" → RAG, không fine-tune.</td></tr>
+<tr><td>PTU vs Standard</td><td>PTU = capacity reserved, latency ổn định. Standard = per-token, co giãn theo quota.</td></tr>
+</table>
+
+<h2>5. Exam tips &amp; bẫy</h2>
+<div class="card tip"><ul>
+<li>Đề nói <b>"latency ổn định, throughput đảm bảo, lưu lượng lớn"</b> → <b>Provisioned Managed (PTU)</b>.</li>
+<li>Đề nói <b>"xử lý hàng loạt offline, tiết kiệm chi phí"</b> → <b>Batch</b>.</li>
+<li>Đề nói <b>"data phải ở trong EU/US"</b> → <b>Data Zone</b> Standard/Provisioned.</li>
+<li>Đề nói <b>"deploy model Llama/Mistral"</b> → <b>Serverless MaaS</b>, gọi qua OpenAI /v1.</li>
+<li>Đề nói <b>"không hard-code secret"</b> → keyless <code>DefaultAzureCredential</code> + role data-plane.</li>
+<li>Content Safety: nội dung <b>severity 0 (safe) không bao giờ bị chặn</b>, chỉ được annotate. Prompt Shields chống jailbreak (khác 4 category).</li>
+<li><code>azure-ai-inference</code> đã <b>retire 2026-08-26</b> → dùng OpenAI SDK /v1. Đề nhắc ChatCompletionsClient = dấu hiệu đáp án cũ.</li>
+</ul></div>
+
+<p class="nav">Chương: <a href="../00_azure_foundations/_REVIEW.html">◀ 00</a> <a href="../02_genai_chat_alternatives/_REVIEW.html">02 ▶</a></p>
+<p class="sub" style="margin-top:28px">Tài liệu ôn tập — không phải nguồn chính thức; luôn đối chiếu Microsoft Learn 2026 (SKU/giá đổi thường xuyên).</p>
+</div></body></html>

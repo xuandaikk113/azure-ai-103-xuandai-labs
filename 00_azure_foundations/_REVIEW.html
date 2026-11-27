@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="vi"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Review 00 · Azure Foundations (RBAC, Identity, Networking)</title>
+<link rel="stylesheet" href="../assets/review.css">
+</head><body><div class="wrap">
+<h1>Review 00 · Azure Foundations</h1>
+<p class="sub">Nền tảng hạ tầng: Resource hierarchy, RBAC, Managed Identity, keyless auth, networking. Ôn nhanh + bẫy thi.</p>
+<p><span class="pill">Plan &amp; manage (25–30%)</span><span class="pill">RBAC</span><span class="pill">Managed Identity</span><span class="pill">Keyless</span></p>
+
+<h2>1. Tóm tắt</h2>
+<div class="card">
+<ul>
+<li><b>Resource hierarchy:</b> Management Group → Subscription → Resource Group → Resource. RBAC gán ở cấp nào thì <b>thừa kế xuống</b> dưới.</li>
+<li><b>RBAC = Principal + Role + Scope.</b> Principal (user / group / service principal / managed identity) được gán Role tại Scope.</li>
+<li><b>Managed Identity (MI):</b> danh tính do Azure quản lý, <b>không có secret</b>, chỉ chạy trên Azure. Là cách keyless được khuyến nghị.</li>
+<li><b>Service Principal (SP):</b> app registration + client secret/cert; chạy <b>mọi nơi</b> (CI/CD, on-prem) nhưng phải giữ secret.</li>
+<li><b>Keyless (Entra ID):</b> thay API key bằng <code>DefaultAzureCredential</code>; cần principal có đúng <b>data-plane role</b> nếu không → 401/403.</li>
+</ul>
+</div>
+
+<h2>2. Cú pháp cần nhớ</h2>
+<pre><code># Keyless — thứ tự thử của DefaultAzureCredential:
+#   EnvironmentCredential -> ManagedIdentity -> AzureCli -> ...
+from azure.identity import DefaultAzureCredential
+credential = DefaultAzureCredential()
+
+# Gán RBAC bằng code (control plane):
+from azure.mgmt.authorization import AuthorizationManagementClient
+client.role_assignments.create(
+    scope, role_assignment_name=<guid>,
+    parameters={"role_definition_id": role_def_id,
+                "principal_id": principal_id,
+                "principal_type": "ServicePrincipal"})   # nên set để tránh PrincipalNotFound
+
+# Service Principal (ngoài Azure):
+from azure.identity import ClientSecretCredential
+credential = ClientSecretCredential(tenant_id, client_id, client_secret)</code></pre>
+
+<h2>3. Bảng built-in roles hay dùng (khi nào dùng)</h2>
+<p class="sub">Nhớ: <b>actions</b> = control plane (tạo/sửa tài nguyên, deployment); <b>dataActions</b> = data plane (gọi inference, đọc/ghi data). Keyless cần role có <b>dataActions</b> đúng.</p>
+<table>
+<tr><th>Role</th><th>Mặt phẳng</th><th>Khi nào dùng</th></tr>
+<tr><td><b>Foundry User</b> (cũ: Azure AI User)</td><td>data</td><td>Dùng project: gọi model/inference, dùng agent. Role tối thiểu cho dev chạy app trên Foundry project.</td></tr>
+<tr><td><b>Foundry Project Manager</b></td><td>control</td><td>Quản lý 1 project: connections, deployments, members. Không cần quyền toàn account.</td></tr>
+<tr><td><b>Foundry Owner</b></td><td>control+data</td><td>Toàn quyền account + project. Admin.</td></tr>
+<tr><td><b>Foundry Agent Consumer</b></td><td>data</td><td>Chỉ gọi/consume agent đã tạo, không sửa project.</td></tr>
+<tr><td><b>Cognitive Services OpenAI User</b></td><td>data</td><td>Gọi inference <b>Azure OpenAI classic</b> (không phải Foundry project). KHÔNG tạo được deployment.</td></tr>
+<tr><td><b>Cognitive Services OpenAI Contributor</b></td><td>control+data</td><td>Azure OpenAI classic: tạo/sửa deployment + gọi inference.</td></tr>
+<tr><td><b>Cognitive Services User</b></td><td>data</td><td>Gọi data-plane + đọc key cho các AI service khác (Vision/Language/Speech/Doc Intelligence/Content Safety).</td></tr>
+<tr><td><b>Cognitive Services Contributor</b></td><td>control</td><td>Tạo/quản lý tài nguyên Cognitive Services (không phải để gọi inference).</td></tr>
+<tr><td><b>Search Service Contributor</b></td><td>control</td><td>AI Search: quản lý index/indexer/skillset (object), <b>KHÔNG</b> đọc nội dung document.</td></tr>
+<tr><td><b>Search Index Data Reader</b></td><td>data</td><td>AI Search: <b>query</b> documents trong index (RAG read).</td></tr>
+<tr><td><b>Search Index Data Contributor</b></td><td>data</td><td>AI Search: <b>ghi/đẩy</b> documents vào index (ingest).</td></tr>
+<tr><td><b>Storage Blob Data Reader / Contributor</b></td><td>data</td><td>Đọc / ghi blob keyless (nguồn ingest hoặc nơi xuất kết quả).</td></tr>
+<tr><td><b>User Access Administrator</b></td><td>control</td><td>Quyền <b>gán role</b> cho principal khác (không phải để dùng dịch vụ).</td></tr>
+</table>
+
+<h2>4. Dễ nhầm</h2>
+<table>
+<tr><th>Cặp dễ nhầm</th><th>Phân biệt</th></tr>
+<tr><td>Managed Identity vs Service Principal</td><td>Cả hai <code>principal_type='ServicePrincipal'</code>. MI: không secret, chỉ trên Azure. SP: có secret, chạy mọi nơi.</td></tr>
+<tr><td>System-assigned vs User-assigned MI</td><td>System: gắn 1 tài nguyên, xoá theo tài nguyên. User: độc lập, chia sẻ nhiều tài nguyên.</td></tr>
+<tr><td>Control plane vs Data plane</td><td>Tạo deployment = control (actions). Gọi model = data (dataActions). Có quyền control chưa chắc gọi được inference.</td></tr>
+<tr><td><i>Azure AI Developer</i> vs <i>Foundry User</i></td><td>Với Foundry project mới dùng <b>Foundry User</b>; đừng chọn Azure AI Developer (ngữ cảnh hub cũ).</td></tr>
+</table>
+
+<h2>5. Exam tips &amp; bẫy</h2>
+<div class="card tip"><ul>
+<li>Đề nói <b>"app chạy trên Azure, không muốn quản lý secret"</b> → <b>Managed Identity</b> (ưu tiên system-assigned nếu 1 tài nguyên, user-assigned nếu dùng chung).</li>
+<li>Đề nói <b>"app on-prem / pipeline CI-CD ngoài Azure cần truy cập Azure"</b> → <b>Service Principal</b> (client secret/cert).</li>
+<li>Đề nói <b>"least privilege để đọc tài liệu cho RAG"</b> → <b>Search Index Data Reader</b> (không phải Search Service Contributor — role đó không đọc được data).</li>
+<li>Gặp lỗi <b>401/403 khi keyless</b> → thiếu <b>data-plane role</b> đúng cho principal, không phải lỗi code.</li>
+<li>Chọn <b>scope thấp nhất đủ dùng</b> (resource &gt; resource group &gt; subscription) — least privilege.</li>
+<li><code>PrincipalNotFound</code> khi tạo role assignment trên principal mới → set <code>principal_type</code> (chờ nhân bản Entra).</li>
+</ul></div>
+
+<p class="nav">Chương: <a href="../01_foundry_setup_and_deployments/_REVIEW.html">01 ▶</a></p>
+<p class="sub" style="margin-top:28px">Tài liệu ôn tập — không phải nguồn chính thức; luôn đối chiếu Microsoft Learn 2026 (tên role/SKU đổi thường xuyên).</p>
+</div></body></html>

@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="vi"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Review 09 · Observability &amp; Tracing (OpenTelemetry, Monitoring, Online Evaluation)</title>
+<link rel="stylesheet" href="../assets/review.css">
+</head><body><div class="wrap">
+<h1>Review 09 · Observability &amp; Tracing</h1>
+<p class="sub">OpenTelemetry tracing → Application Insights (token/latency/tool spans); monitoring + online evaluation (groundedness/safety, error analysis). Ôn nhanh + bẫy thi.</p>
+<p><span class="pill">Set up observability</span><span class="pill">OpenTelemetry</span><span class="pill">Monitoring</span><span class="pill">Online Evaluation</span></p>
+
+<h2>1. Tóm tắt</h2>
+<div class="card"><ul>
+<li><b>Tracing</b> = ghi lại từng bước agent dưới dạng <b>span</b> (OpenTelemetry chuẩn mở), xuất lên <b>Application Insights</b> qua <code>configure_azure_monitor(connection_string=...)</code>.</li>
+<li>Trace cho thấy: <b>token usage</b>, <b>latency breakdown</b>, các <b>tool call</b> / model call, lỗi — để debug &amp; tối ưu.</li>
+<li><b>Monitoring</b> = theo dõi liên tục agent đã deploy (traffic, lỗi, chi phí) trên dashboard Foundry + App Insights.</li>
+<li><b>Online evaluation</b> = chấm <b>hành vi agent trên dữ liệu thật đang chạy</b> bằng evaluators: <b>GroundednessEvaluator</b> (có bịa không), safety, relevance; kèm <b>error analysis</b>.</li>
+<li><b>Offline model eval</b> (dataset cố định, trước deploy) KHÁC <b>online agent eval</b> (traffic thật, sau deploy). Đề thi tách riêng 2 skill này.</li>
+</ul></div>
+
+<h2>2. Cú pháp cần nhớ</h2>
+<pre><code># TRACING — 1 dòng bật export lên Application Insights:
+from azure.monitor.opentelemetry import configure_azure_monitor
+configure_azure_monitor(connection_string=cfg["APPLICATIONINSIGHTS_CONNECTION_STRING"])
+# -> sau đó agent/azure-ai-projects tự phát span: token, latency, tool call
+
+# ONLINE EVALUATION — chấm response thật bằng evaluator:
+from azure.ai.evaluation import RelevanceEvaluator, GroundednessEvaluator
+relevance    = RelevanceEvaluator(model_config)
+groundedness = GroundednessEvaluator(model_config)
+
+rel = relevance(query=q, response=r, context=ctx)
+gnd = groundedness(query=q, response=r, context=ctx)   # context = tài liệu ground
+score = gnd.get("groundedness")                        # thấp -> nghi "bịa" (hallucination)
+
+# Biến .env chính: APPLICATIONINSIGHTS_CONNECTION_STRING, FOUNDRY_PROJECT_ENDPOINT</code></pre>
+
+<h2>3. Dễ nhầm với service khác</h2>
+<table>
+<tr><th>Cặp dễ nhầm</th><th>Phân biệt</th></tr>
+<tr><td>Offline model eval vs Online agent eval</td><td>Offline = dataset cố định, chạy <b>trước deploy</b> để chọn model/prompt. Online = chấm <b>traffic thật đang chạy</b> (sau deploy) + error analysis hành vi agent.</td></tr>
+<tr><td>Tracing vs Monitoring vs Evaluation</td><td>Tracing = <b>ghi chi tiết 1 lần chạy</b> (span). Monitoring = <b>theo dõi liên tục</b> số liệu tổng hợp (traffic/lỗi/chi phí). Evaluation = <b>chấm chất lượng</b> output (groundedness/safety).</td></tr>
+<tr><td>Application Insights vs Azure Monitor</td><td>Azure Monitor = nền tảng; Application Insights = thành phần APM nhận telemetry. <code>configure_azure_monitor</code> đẩy OpenTelemetry vào App Insights.</td></tr>
+<tr><td>GroundednessEvaluator vs Content Safety</td><td>Groundedness = output có <b>bám vào context/bịa</b> không (chất lượng RAG). Content Safety = nội dung <b>độc hại</b> (Hate/Violence...). Khác mục đích.</td></tr>
+<tr><td>Span vs metric</td><td>Span = 1 đơn vị công việc có thời gian + thuộc tính (tool call, model call). Metric = số đo tổng hợp (count/latency trung bình).</td></tr>
+</table>
+
+<h2>4. Exam tips &amp; bẫy</h2>
+<div class="card tip"><ul>
+<li>Đề nói <b>"xem token/latency/tool call của từng lần agent chạy"</b> → <b>OpenTelemetry tracing</b> + <code>configure_azure_monitor</code> → Application Insights.</li>
+<li>Đề nói <b>"đánh giá agent có bịa đặt không trên dữ liệu thật"</b> → <b>online evaluation</b> + <b>GroundednessEvaluator</b>.</li>
+<li>Đề nói <b>"so sánh model/prompt trên bộ test cố định trước khi deploy"</b> → <b>offline evaluation</b> (không phải online).</li>
+<li>Đề nói <b>"theo dõi liên tục agent production (traffic/lỗi/chi phí)"</b> → <b>monitoring</b> dashboard, không chỉ tracing 1 lần.</li>
+<li>Groundedness <b>thấp</b> = dấu hiệu hallucination → cần điều tra prompt/RAG, không phải lỗi hạ tầng.</li>
+<li>Cần biến <b>APPLICATIONINSIGHTS_CONNECTION_STRING</b> để export trace; thiếu → không thấy telemetry.</li>
+<li>Tracing dùng chuẩn mở <b>OpenTelemetry</b> (không phải logging tự chế) → tương thích công cụ APM khác.</li>
+</ul></div>
+
+<p class="nav">Chương: <a href="../08_information_extraction/_REVIEW.html">◀ 08</a></p>
+<p class="sub" style="margin-top:28px">Tài liệu ôn tập — không phải nguồn chính thức; luôn đối chiếu Microsoft Learn 2026 (API evaluation/monitoring còn đổi).</p>
+</div></body></html>

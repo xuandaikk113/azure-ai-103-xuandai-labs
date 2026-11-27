@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="vi"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Review 03 · Build &amp; Deploy Agents (Foundry Agent Service, Tools, Agent Framework)</title>
+<link rel="stylesheet" href="../assets/review.css">
+</head><body><div class="wrap">
+<h1>Review 03 · Build &amp; Deploy Agents</h1>
+<p class="sub">Foundry Agent Service (create_version, get_openai_client), function tools vs built-in tools, MCP/A2A, Microsoft Agent Framework, hosted agent, Bing grounding vs web_search, OpenAPI &amp; Azure Functions tool. Ôn nhanh + bẫy thi.</p>
+<p><span class="pill">Agent Service</span><span class="pill">Tools</span><span class="pill">MCP / A2A</span><span class="pill">Agent Framework</span><span class="pill">Grounding</span></p>
+
+<h2>1. Tóm tắt</h2>
+<div class="card"><ul>
+<li><b>Foundry Agent Service</b> = agent server-managed. Tạo qua <code>project.agents.create_version(agent_name=..., definition=PromptAgentDefinition(model=..., instructions=..., tools=[...]))</code>; gọi qua <code>project.get_openai_client().responses.create(...)</code>.</li>
+<li><b>SDK 2026:</b> gói riêng <code>azure-ai-agents</code> (<code>create_agent</code>) đã <b>GỘP vào <code>azure-ai-projects</code> 2.x</b> (<code>create_version</code>). <code>AIProjectClient</code> chỉ hỗ trợ <b>Entra ID</b> (keyless).</li>
+<li><b>Custom function tool</b> (<code>FunctionTool</code>): bạn tự chạy hàm Python → trả <code>FunctionCallOutput</code> trong vòng lặp tool-call. <b>Built-in tools</b>: Code Interpreter, File Search (cần <b>vector store</b>) chạy server-side.</li>
+<li><b>Tool kết nối ngoài:</b> <code>MCPTool</code> (chuẩn mở tool/data, có <code>require_approval</code>), A2A (agent gọi agent), <code>OpenApiTool</code> (gọi REST theo spec), <code>AzureFunctionTool</code> (serverless qua Storage Queue), <code>BingGroundingTool</code> / web_search (tri thức web).</li>
+<li><b>Microsoft Agent Framework</b> (code-first, async, Python ≥ 3.10/3.11): <code>Agent(client=FoundryChatClient(...))</code> rồi <code>await agent.run(...)</code>. Hợp nhất <b>Semantic Kernel + AutoGen</b>. Đổi provider = đổi client, cùng API.</li>
+<li><b>Hosted agent</b> nói "ngôn ngữ" Responses: expose endpoint <code>/responses</code> để deploy lên Foundry Hosted Agent.</li>
+</ul></div>
+
+<h2>2. Cú pháp cần nhớ</h2>
+<pre><code># Tạo &amp; gọi agent (Foundry Agent Service):
+from azure.ai.projects import AIProjectClient
+from azure.ai.projects.models import PromptAgentDefinition, FunctionTool
+with DefaultAzureCredential() as cred, \
+     AIProjectClient(endpoint=ep, credential=cred) as project:
+    agent = project.agents.create_version(
+        agent_name="my-agent",
+        definition=PromptAgentDefinition(model=MODEL, instructions="...", tools=[tool]))
+    with project.get_openai_client(agent_name=agent.name) as oai:
+        resp = oai.responses.create(input="...")      # gọi qua Responses
+        print(resp.output_text)
+    project.agents.delete_version(agent_name=agent.name,
+                                  agent_version=agent.version, force=True)  # dọn
+
+# Custom function tool — vòng lặp tool-call:
+tool = FunctionTool(name="get_x", description="...", parameters={...}, strict=True)
+for item in resp.output:
+    if item.type == "function_call":
+        out = my_python_func(**json.loads(item.arguments))
+        tool_outputs.append(FunctionCallOutput(type="function_call_output",
+                             call_id=item.call_id, output=json.dumps(out)))
+resp = oai.responses.create(input=tool_outputs, previous_response_id=resp.id)
+
+# Built-in tools: Code Interpreter + File Search (cần vector store):
+vs = oai.vector_stores.create(name="store")
+oai.vector_stores.file_batches.upload_and_poll(vector_store_id=vs.id, files=[...])
+tools=[CodeInterpreterTool(), FileSearchTool(vector_store_ids=[vs.id])]
+
+# Tools ngoài:
+MCPTool(server_label="x", server_url=URL, require_approval="always")
+OpenApiTool(openapi=OpenApiFunctionDefinition(name=..., spec=spec,
+            auth=OpenApiAnonymousAuthDetails()))
+AzureFunctionTool(azure_function=AzureFunctionDefinition(input_binding=..., output_binding=...))
+BingGroundingTool(bing_grounding=BingGroundingSearchToolParameters(
+    search_configurations=[BingGroundingSearchConfiguration(project_connection_id=...)]))
+# web_search built-in (KHÔNG cần agent/connection): tools=[{"type":"web_search"}]
+
+# Microsoft Agent Framework (code-first, async):
+from agent_framework import Agent
+from agent_framework.foundry import FoundryChatClient
+agent = Agent(client=FoundryChatClient(project_endpoint=ep, model=MODEL,
+              credential=DefaultAzureCredential()), instructions="...")
+result = await agent.run("...")          # result.text</code></pre>
+
+<h2>3. Dễ nhầm với service khác</h2>
+<table>
+<tr><th>Cặp dễ nhầm</th><th>Phân biệt</th></tr>
+<tr><td>Custom function tool vs Azure Functions tool</td><td><code>FunctionTool</code> chạy <b>in-process</b> (code Python của bạn trong vòng lặp tool-call). <code>AzureFunctionTool</code> chạy <b>serverless</b>, bất đồng bộ qua <b>Storage Queue</b> (input/output binding). Đề "logic chạy serverless, scale độc lập" → Azure Functions tool.</td></tr>
+<tr><td>Bing grounding vs web_search vs RAG (AI Search)</td><td>Bing grounding = cần <b>connection "Grounding with Bing"</b> trong project (có phí, dữ liệu ra ngoài). web_search = built-in hosted tool, khai <code>{"type":"web_search"}</code> thẳng, KHÔNG cần agent/connection. RAG AI Search = tri thức <b>nội bộ</b> của bạn (chương 06). Đề "dữ liệu nội bộ công ty" → AI Search, không phải Bing.</td></tr>
+<tr><td>Agent vs gọi model trực tiếp</td><td>Agent = tài nguyên <b>server-managed</b> (có instructions + tools + version, quản lý vòng đời). Gọi model trực tiếp = chỉ một request. Đề "trợ lý bền, có tool, quản lý tập trung" → agent.</td></tr>
+<tr><td><code>azure-ai-agents</code> vs <code>azure-ai-projects</code></td><td>Gói riêng <code>azure-ai-agents</code> (<code>create_agent</code>) đã <b>gộp</b> vào <code>azure-ai-projects</code> 2.x (<code>agents.create_version</code>). Đề nhắc <code>create_agent</code>/gói riêng = dấu hiệu API cũ.</td></tr>
+<tr><td>OpenAPI tool vs custom function tool</td><td>OpenAPI tool = nạp sẵn <b>spec</b>, agent tự gọi REST, KHÔNG cần code wrapper; auth khai trong spec. Function tool = bạn viết hàm. Đề "đã có REST API + spec sẵn" → OpenAPI tool.</td></tr>
+<tr><td>MCP vs A2A</td><td>MCP = chuẩn mở để agent kết nối <b>tool/data</b> (một server tool). A2A = <b>agent gọi agent</b> khác như endpoint từ xa (phối hợp giữa hệ thống).</td></tr>
+<tr><td>Agent Framework vs Semantic Kernel/AutoGen</td><td>Semantic Kernel + AutoGen đã <b>hợp nhất</b> thành Microsoft Agent Framework (<code>agent-framework-core</code> + <code>-foundry</code>). Đề nhắc SK/AutoGen = ngữ cảnh cũ.</td></tr>
+</table>
+
+<h2>4. Exam tips &amp; bẫy</h2>
+<div class="card tip"><ul>
+<li>Đề nói <b>"tính toán/chạy code, vẽ biểu đồ"</b> → <b>Code Interpreter</b> (built-in), không phải custom function.</li>
+<li>Đề nói <b>"tra cứu trong tài liệu của tôi"</b> → <b>File Search</b> + <b>vector store</b> (cho vài file); nhiều/phức tạp → RAG AI Search (chương 06).</li>
+<li>Đề nói <b>"thông tin web mới, có citation"</b> → <b>Bing grounding</b> (có connection) hoặc <b>web_search</b>; "dữ liệu nội bộ" → AI Search.</li>
+<li>Đề nói <b>"hành động nhạy cảm cần người duyệt"</b> → <code>require_approval</code> (vòng lặp <code>mcp_approval_request</code> → <code>McpApprovalResponse</code>).</li>
+<li>Đề nói <b>"gọi REST API có sẵn, khỏi viết code"</b> → <b>OpenAPI tool</b>; "logic serverless của bạn" → <b>Azure Functions tool</b>.</li>
+<li>Đề nói <b>"code-first, chạy nhiều provider, portable"</b> → <b>Microsoft Agent Framework</b>; nhớ nó <b>async</b> + Python mới.</li>
+<li>Đề nói <b>"deploy agent thành endpoint HTTP"</b> → <b>Hosted Agent</b> nói chuẩn <code>/responses</code>.</li>
+<li><code>AIProjectClient</code> KHÔNG nhận API key — chỉ <code>DefaultAzureCredential</code>; thiếu role data-plane → 401/403.</li>
+<li>Luôn <b>delete_version</b> agent test để dọn tài nguyên.</li>
+</ul></div>
+
+<p class="nav">Chương: <a href="../02_genai_chat_alternatives/_REVIEW.html">◀ 02</a> <a href="../04_agent_conversation_management/_REVIEW.html">04 ▶</a></p>
+<p class="sub" style="margin-top:28px">Tài liệu ôn tập — không phải nguồn chính thức; luôn đối chiếu Microsoft Learn 2026 (API agent/tool đổi thường xuyên).</p>
+</div></body></html>

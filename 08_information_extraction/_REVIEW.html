@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="vi"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Review 08 · Information Extraction (Document Intelligence vs Content Understanding)</title>
+<link rel="stylesheet" href="../assets/review.css">
+</head><body><div class="wrap">
+<h1>Review 08 · Information Extraction</h1>
+<p class="sub">Document Intelligence (layout/prebuilt/custom) vs Content Understanding (đa phương thức: doc/audio/video/image, analyzer + schema, extract/generate/classify). Ôn nhanh + bẫy thi.</p>
+<p><span class="pill">Document Intelligence</span><span class="pill">Content Understanding</span><span class="pill">prebuilt vs custom</span><span class="pill">Multimodal</span></p>
+
+<h2>1. Tóm tắt</h2>
+<div class="card"><ul>
+<li><b>Document Intelligence</b> (cũ: <i>Form Recognizer</i>, SDK <code>azure-ai-formrecognizer</code> → <code>azure-ai-documentintelligence</code>) = chỉ <b>tài liệu</b>. Gọi <code>begin_analyze_document(model_id, ...)</code>.</li>
+<li><b>Models DI:</b> <code>prebuilt-layout</code> (trang/đoạn/<b>bảng</b>/toạ độ) · <code>prebuilt-invoice</code>, <code>prebuilt-idDocument</code> (field chuẩn hoá + <b>confidence</b>) · <b>custom</b> (train model riêng theo mẫu form).</li>
+<li><b>Content Understanding</b> (mới, GA 2025) = <b>đa phương thức</b>: document/audio/video/image dùng <b>chung 1 API</b> <code>begin_analyze(analyzer_id, ...)</code>, chỉ đổi analyzer.</li>
+<li><b>CU analyzer:</b> prebuilt (vd <code>prebuilt-documentSearch</code>, <code>prebuilt-audioSearch</code>, <code>prebuilt-videoSearch</code>) hoặc <b>custom</b> với <b>schema field</b> tự định nghĩa (<code>begin_create_analyzer</code>).</li>
+<li><b>3 kiểu field trong CU schema:</b> <b>extract</b> (lấy giá trị có sẵn) · <b>generate</b> (model sinh/suy luận giá trị) · <b>classify</b> (phân loại).</li>
+<li>Tất cả đều <b>long-running</b> (poller). CU trước có SDK phải gọi REST tay — nay dùng <code>azure-ai-contentunderstanding</code>.</li>
+</ul></div>
+
+<h2>2. Cú pháp cần nhớ</h2>
+<pre><code># DOCUMENT INTELLIGENCE — layout (bảng/cấu trúc):
+from azure.ai.documentintelligence import DocumentIntelligenceClient
+poller = client.begin_analyze_document("prebuilt-layout", body=f)
+result = poller.result()
+for table in result.tables:      # cells + bounding regions
+    ...
+
+# DI — prebuilt field có confidence (đổi model_id):
+client.begin_analyze_document("prebuilt-invoice", body=f)       # VendorName, Total...
+client.begin_analyze_document("prebuilt-idDocument", body=f)    # field + .confidence
+
+# CONTENT UNDERSTANDING — chung 1 API, đổi analyzer_id cho mỗi modality:
+from azure.ai.contentunderstanding import ContentUnderstandingClient
+poller = client.begin_analyze(analyzer_id="prebuilt-documentSearch", ...)  # document
+poller = client.begin_analyze(analyzer_id="prebuilt-audioSearch", ...)     # audio
+poller = client.begin_analyze(analyzer_id="prebuilt-videoSearch", ...)     # video
+
+# CU — custom analyzer với schema (extract/generate/classify):
+analyzer_definition = { "fieldSchema": { "fields": { ... } } }  # mỗi field có generationMethod
+client.begin_create_analyzer(analyzer_id="my-analyzer", analyzer=analyzer_definition)
+client.begin_analyze(analyzer_id="my-analyzer", ...)
+client.delete_analyzer(analyzer_id="my-analyzer")              # dọn tài nguyên test</code></pre>
+
+<h2>3. Dễ nhầm với service khác</h2>
+<table>
+<tr><th>Cặp dễ nhầm</th><th>Phân biệt</th></tr>
+<tr><td>Document Intelligence vs Content Understanding</td><td>DI = <b>chỉ document</b> (PDF/ảnh form). CU = <b>đa phương thức</b> (document + audio + video + image) chung 1 API. Đề có audio/video → CU, không phải DI.</td></tr>
+<tr><td>prebuilt-layout vs prebuilt-invoice/idDocument</td><td>Layout = cấu trúc chung (trang/đoạn/<b>bảng</b>/toạ độ), không field nghiệp vụ. prebuilt-invoice/idDocument = <b>field chuẩn hoá</b> cho loại tài liệu cụ thể + confidence.</td></tr>
+<tr><td>prebuilt vs custom model</td><td>prebuilt = dùng ngay (hoá đơn/ID/receipt...). Custom = <b>train</b> trên mẫu form riêng của bạn khi prebuilt không khớp.</td></tr>
+<tr><td>extract vs generate vs classify (CU)</td><td>extract = lấy giá trị có trong tài liệu. generate = model <b>suy luận/tóm tắt</b> ra giá trị mới. classify = gán <b>nhãn/loại</b>.</td></tr>
+<tr><td>Form Recognizer (tên cũ)</td><td>Form Recognizer = tên cũ của Document Intelligence; SDK cũ <code>azure-ai-formrecognizer</code>. Đề/đáp án nhắc Form Recognizer = ngữ cảnh cũ.</td></tr>
+<tr><td>Document Intelligence vs Image Analysis READ</td><td>DI = cấu trúc + field tài liệu (bảng, key-value). Image Analysis READ = OCR chữ thuần trong ảnh. Đề "bảng/field hoá đơn" → DI; "đọc chữ trên biển hiệu" → READ.</td></tr>
+</table>
+
+<h2>4. Exam tips &amp; bẫy</h2>
+<div class="card tip"><ul>
+<li>Đề nói <b>"trích bảng + cấu trúc + toạ độ từ PDF"</b> → <b>prebuilt-layout</b>.</li>
+<li>Đề nói <b>"lấy field chuẩn (VendorName/Total) có độ tin cậy"</b> → <b>prebuilt-invoice</b> (hoặc prebuilt-idDocument cho CMND/hộ chiếu), đọc <code>.confidence</code>.</li>
+<li>Đề nói <b>"mẫu form riêng của công ty, prebuilt không khớp"</b> → <b>custom model</b> (DI) hoặc custom analyzer (CU).</li>
+<li>Đề nói <b>"phân tích audio/video/ảnh + tài liệu thống nhất một dịch vụ"</b> → <b>Content Understanding</b> (DI không làm được audio/video).</li>
+<li>Đề nói <b>"định nghĩa field tự do, có field do model sinh ra"</b> → CU custom analyzer, field kiểu <b>generate</b>; field có sẵn → <b>extract</b>; gán loại → <b>classify</b>.</li>
+<li>Đề nói <b>"Form Recognizer"</b> trong đáp án = dấu hiệu tên cũ; service hiện tại là <b>Document Intelligence</b>.</li>
+<li>Mọi call đều <b>long-running</b> → dùng poller (<code>begin_analyze_document</code> / <code>begin_analyze</code>), nhớ <code>.result()</code>.</li>
+<li>Dọn tài nguyên test: xoá custom analyzer/model sau khi thử (<code>delete_analyzer</code>).</li>
+</ul></div>
+
+<p class="nav">Chương: <a href="../07_vision_language_and_speech/_REVIEW.html">◀ 07</a> <a href="../09_observability_and_tracing/_REVIEW.html">09 ▶</a></p>
+<p class="sub" style="margin-top:28px">Tài liệu ôn tập — không phải nguồn chính thức; luôn đối chiếu Microsoft Learn 2026 (analyzer id/SDK CU còn đổi).</p>
+</div></body></html>
