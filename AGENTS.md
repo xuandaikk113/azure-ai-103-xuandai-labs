@@ -49,6 +49,9 @@
   - Agent: `azure-ai-agents` đã **gộp vào `azure-ai-projects` 2.x**; tạo agent qua
     `project_client.agents.create_version(...)`, gọi model/Responses qua `project_client.get_openai_client()`.
   - Agent Framework: cài `agent-framework-core` (lõi) / `agent-framework-foundry` (tích hợp Foundry); Python ≥ 3.10.
+    Orchestration dựng sẵn (`SequentialBuilder`/`ConcurrentBuilder`/`HandoffBuilder`/`MagenticBuilder`/`GroupChatBuilder`)
+    nằm ở gói riêng **`agent-framework-orchestrations`** (`from agent_framework.orchestrations import ...`); session/memory
+    (`AgentSession`, `FileHistoryProvider`, `FileMemoryProvider`, `ContextWindowCompactionStrategy`) có sẵn trong core.
   - Inference: **`azure-ai-inference` đã DEPRECATED (retire 2026-08-26)** → dùng **OpenAI SDK** trỏ endpoint
     OpenAI/v1 (`https://<res>.openai.azure.com/openai/v1/`, token scope `https://ai.azure.com/.default`) cho
     cả Azure OpenAI lẫn Foundry Models (Llama/Mistral/DeepSeek/Cohere).
